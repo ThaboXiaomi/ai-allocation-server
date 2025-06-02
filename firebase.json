@@ -1,0 +1,39 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "campus-venue-navigator",
+          "appId": "1:154152922053:android:25c6bc8a0f350b6073b9ac",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "campus-venue-navigator",
+          "configurations": {
+            "android": "1:154152922053:android:25c6bc8a0f350b6073b9ac",
+            "web": "1:154152922053:web:24d9be81213a34a873b9ac",
+            "windows": "1:154152922053:web:a3b65f805f5192b273b9ac"
+          }
+        }
+      }
+    }
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ],
+      "predeploy": [
+        "npm --prefix \"$RESOURCE_DIR\" run lint"
+      ]
+    }
+  ]
+}
