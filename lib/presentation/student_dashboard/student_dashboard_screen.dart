@@ -52,7 +52,13 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
         .collection('students')
         .doc(user.uid)
         .get();
-    return doc.data()?['name'] as String?;
+    final data = doc.data();
+    if (data == null) return 'Student';
+    final name = data['name'];
+    if (name is String && name.isNotEmpty) {
+      return name;
+    }
+    return 'Student';
   }
 
   @override

@@ -148,8 +148,11 @@ class _LecturerInterfaceState extends State<LecturerInterface>
       builder: (context, isDark, _) {
         return MaterialApp(
             theme: isDark ? AppTheme.darkTheme : AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme, // Add this line for completeness
+            themeMode: isDark ? ThemeMode.dark : ThemeMode.light, // Add this line
             home: Scaffold(
-              endDrawer: _buildSidebarMenu(context, isDark), // <-- right side
+              drawer: _buildSimpleDrawer(context),
+              endDrawer: _buildSidebarMenu(context, isDark),
               appBar: AppBar(
                 elevation: 0,
                 backgroundColor: Colors.transparent,
@@ -196,6 +199,17 @@ class _LecturerInterfaceState extends State<LecturerInterface>
                     onPressed: () => _showNotificationsPanel(context),
                     tooltip: 'Notifications',
                   ),
+                  // Add a dark mode toggle button to the AppBar actions
+                  IconButton(
+                    icon: Icon(
+                      isDark ? Icons.dark_mode : Icons.light_mode,
+                      color: AppTheme.primary600,
+                    ),
+                    tooltip: isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode',
+                    onPressed: () {
+                      _isDarkMode.value = !isDark;
+                    },
+                  ),
                 ],
               ),
               body: SafeArea(
@@ -226,42 +240,23 @@ class _LecturerInterfaceState extends State<LecturerInterface>
                   ),
                 ),
               ),
-              bottomNavigationBar: Container(
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                color: Colors.white,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.check_circle_outline), // Attendance
-                      tooltip: 'Attendance',
-                      onPressed: () {
-                        // Handle Attendance tap
-                      },
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.timer), // Class Timer
-                      tooltip: 'Class Timer',
-                      onPressed: () {
-                        // Handle Timer tap
-                      },
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.notifications), // Notifications
-                      tooltip: 'Notifications',
-                      onPressed: () {
-                        // Handle Notifications tap
-                      },
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.map), // Venue Map
-                      tooltip: 'Venue Map',
-                      onPressed: () {
-                        // Handle Map tap
-                      },
-                    ),
-                  ],
-                ),
+              // REPLACE the old bottomNavigationBar with the new one below:
+              bottomNavigationBar: BottomNavigationBar(
+                items: const [
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.today),
+                    label: "Today's Schedule",
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.schedule),
+                    label: 'Upcoming Lectures',
+                  ),
+                ],
+                currentIndex: _tabController.index,
+                onTap: (index) {
+                  _tabController.animateTo(index);
+                  setState(() {});
+                },
               ),
             ));
       },
@@ -843,6 +838,92 @@ class _LecturerInterfaceState extends State<LecturerInterface>
       .get();
   return snapshot.docs.map((doc) => doc.data()).toList();
 }
+
+  Widget _buildSimpleDrawer(BuildContext context) {
+    return Drawer(
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: <Widget>[
+          DrawerHeader(
+            decoration: BoxDecoration(color: Colors.blue),
+            child: Text('Lecturer Menu', style: TextStyle(color: Colors.white, fontSize: 24)),
+          ),
+          ListTile(
+            leading: Icon(Icons.check_circle_outline),
+            title: Text('Attendance'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => AttendanceStatsWidget(courseId: 'sampleCourseId'),
+                ),
+              );
+            },
+          ),
+          ListTile(
+            leading: Icon(Icons.timer),
+            title: Text('Class Timer'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ClassTimerWidget(classId: 'sampleClassId'),
+                ),
+              );
+            },
+          ),
+          ListTile(
+            leading: Icon(Icons.notifications),
+            title: Text('Notifications'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => NotificationCardWidget(
+                    notification: const {
+                      "id": "notif1",
+                      "isRead": false,
+                      "type": "system",
+                    },
+                    onTap: () {},
+                  ),
+                ),
+              );
+            },
+          ),
+          ListTile(
+            leading: Icon(Icons.map),
+            title: Text('Venue Map'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => VenueMapWidget(
+                    fromVenue: 'A101',
+                    toVenue: 'B202',
+                  ),
+                ),
+              );
+            },
+          ),
+          Divider(),
+          ListTile(
+            leading: Icon(Icons.logout),
+            title: Text('Logout'),
+            onTap: () async {
+              Navigator.of(context).pop();
+              await FirebaseAuth.instance.signOut();
+              Navigator.pushReplacementNamed(context, '/lecturer-login');
+            },
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 // Helper class for nav items
