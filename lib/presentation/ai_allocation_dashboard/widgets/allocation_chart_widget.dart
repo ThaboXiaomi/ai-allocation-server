@@ -83,31 +83,45 @@ class AllocationChartWidget extends StatelessWidget {
           ),
           titlesData: FlTitlesData(
             show: true,
-            bottomTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 30,
-              getTitles: (value) {
-                if (value >= 0 && value < data.length) {
-                  return data[value.toInt()]['day'];
-                }
-                return '';
-              },
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 30,
+                getTitlesWidget: (value, meta) {
+                  if (value >= 0 && value < data.length) {
+                    return Text(
+                      data[value.toInt()]['day'],
+                      style: AppTheme.lightTheme.bodySmall,
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
+              ),
             ),
-            leftTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 40,
-              getTitles: (value) {
-                if (value % 20 == 0) {
-                  return '${value.toInt()}%';
-                }
-                return '';
-              },
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 40,
+                getTitlesWidget: (value, meta) {
+                  if (value % 20 == 0) {
+                    return Text(
+                      '${value.toInt()}%',
+                      style: AppTheme.lightTheme.bodySmall,
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
+              ),
             ),
-            topTitles: SideTitles(
-              showTitles: false,
+            topTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: false,
+              ),
             ),
-            rightTitles: SideTitles(
-              showTitles: false,
+            rightTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: false,
+              ),
             ),
           ),
           minX: 0,
@@ -125,7 +139,7 @@ class AllocationChartWidget extends StatelessWidget {
                 ),
               ),
               isCurved: true,
-              colors: [AppTheme.primary600],
+              color: AppTheme.primary600,
               barWidth: 3,
               isStrokeCapRound: true,
               dotData: FlDotData(
@@ -141,10 +155,10 @@ class AllocationChartWidget extends StatelessWidget {
               ),
               belowBarData: BarAreaData(
                 show: true,
-                colors: [
+                color: 
                   AppTheme.primary600.withAlpha(26),
-                  AppTheme.primary600.withAlpha(10),
-                ],
+                 
+                
               ),
             ),
             // Utilization Line
@@ -157,10 +171,10 @@ class AllocationChartWidget extends StatelessWidget {
                 ),
               ),
               isCurved: true,
-              colors: [
+              color: 
                 AppTheme.warning600.withAlpha(26),
-                AppTheme.warning600.withAlpha(10),
-              ],
+                
+              
               barWidth: 3,
               isStrokeCapRound: true,
               dotData: FlDotData(
@@ -176,14 +190,22 @@ class AllocationChartWidget extends StatelessWidget {
               ),
               belowBarData: BarAreaData(
                 show: true,
-                gradientColorStops: [0.0, 1.0],
-                colors: [AppTheme.warning600.withAlpha(26)],
+            
+                color: AppTheme.warning600.withAlpha(26),
+                gradient: LinearGradient(
+                  colors: [
+                    AppTheme.warning600.withAlpha(26),
+                    AppTheme.warning600.withAlpha(0),
+                  ],
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
               ),
             ),
-          ],
+            ),
+          ],  
           lineTouchData: LineTouchData(
             touchTooltipData: LineTouchTooltipData(
-              tooltipBgColor: AppTheme.neutral800.withAlpha(204),
+              
               getTooltipItems: (List<LineBarSpot> touchedSpots) {
                 return touchedSpots.map((spot) {
                   final String title = spot.barIndex == 0

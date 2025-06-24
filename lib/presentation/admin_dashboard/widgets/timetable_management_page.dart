@@ -365,6 +365,7 @@ class _TimetableManagementPageState extends State<TimetableManagementPage>
                             final studentIds =
                                 studentsSnapshot.docs.map((d) => d.id).toList();
                             print(studentIds);
+                            print(school);
                             // Assign students to timetable
                             await FirebaseFirestore.instance
                                 .collection('timetables')
