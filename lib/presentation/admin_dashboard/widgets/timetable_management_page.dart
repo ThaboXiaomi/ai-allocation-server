@@ -5,10 +5,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class TimetableManagementPage extends StatefulWidget {
   @override
-  State<TimetableManagementPage> createState() => _TimetableManagementPageState();
+  State<TimetableManagementPage> createState() =>
+      _TimetableManagementPageState();
 }
 
-class _TimetableManagementPageState extends State<TimetableManagementPage> {
+class _TimetableManagementPageState extends State<TimetableManagementPage>
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   String? _school;
   String? _courseCode;
@@ -18,126 +20,380 @@ class _TimetableManagementPageState extends State<TimetableManagementPage> {
   DateTime? _date;
   TimeOfDay? _startTime;
   TimeOfDay? _endTime;
+  String? _editingDocId;
+
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this); // <-- Change to 3
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Timetable Management')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            children: [
-              TextFormField(
-                decoration: const InputDecoration(labelText: 'School'),
-                onSaved: (v) => _school = v,
-                validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-              ),
-              TextFormField(
-                decoration: const InputDecoration(labelText: 'Course Code'),
-                onSaved: (v) => _courseCode = v,
-                validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-              ),
-              TextFormField(
-                decoration: const InputDecoration(labelText: 'Course Title'),
-                onSaved: (v) => _courseTitle = v,
-                validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-              ),
-              TextFormField(
-                decoration: const InputDecoration(labelText: 'Lecturer ID'),
-                onSaved: (v) => _lecturerId = v,
-                validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-              ),
-              TextFormField(
-                decoration: const InputDecoration(labelText: 'Room'),
-                onSaved: (v) => _room = v,
-                validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-              ),
-              ListTile(
-                title: Text(_date == null ? 'Select Date' : _date!.toLocal().toString().split(' ')[0]),
-                trailing: const Icon(Icons.calendar_today),
-                onTap: () async {
-                  final picked = await showDatePicker(
-                    context: context,
-                    initialDate: DateTime.now(),
-                    firstDate: DateTime(2024),
-                    lastDate: DateTime(2030),
-                  );
-                  if (picked != null) setState(() => _date = picked);
-                },
-              ),
-              ListTile(
-                title: Text(_startTime == null ? 'Select Start Time' : _startTime!.format(context)),
-                trailing: const Icon(Icons.access_time),
-                onTap: () async {
-                  final picked = await showTimePicker(
-                    context: context,
-                    initialTime: TimeOfDay.now(),
-                  );
-                  if (picked != null) setState(() => _startTime = picked);
-                },
-              ),
-              ListTile(
-                title: Text(_endTime == null ? 'Select End Time' : _endTime!.format(context)),
-                trailing: const Icon(Icons.access_time),
-                onTap: () async {
-                  final picked = await showTimePicker(
-                    context: context,
-                    initialTime: TimeOfDay.now(),
-                  );
-                  if (picked != null) setState(() => _endTime = picked);
-                },
-              ),
-              const SizedBox(height: 20),
-              BlocConsumer<TimetableManagementBloc, TimetableState>(
-                listener: (context, state) {
-                  if (state is TimetableSuccess) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Timetable added!')),
-                    );
-                  } else if (state is TimetableFailure) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Error: ${state.error}')),
-                    );
-                  }
-                },
-                builder: (context, state) {
-                  if (state is TimetableLoading) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  return ElevatedButton(
-                    onPressed: () {
-                      if (_formKey.currentState?.validate() ?? false) {
-                        _formKey.currentState?.save();
-                        if (_date == null || _startTime == null || _endTime == null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Please select date and time')),
-                          );
-                          return;
-                        }
-                        final timetableData = {
-                          'school': _school,
-                          'courseCode': _courseCode,
-                          'courseTitle': _courseTitle,
-                          'lecturerId': _lecturerId,
-                          'room': _room,
-                          'date': _date!.toIso8601String(),
-                          'startTime': _startTime!.format(context),
-                          'endTime': _endTime!.format(context),
-                          'students': [], // Optionally add student IDs here
-                        };
-                        context.read<TimetableManagementBloc>().add(AddTimetable(timetableData));
-                      }
-                    },
-                    child: const Text('Add Timetable'),
-                  );
-                },
-              ),
-            ],
-          ),
+      appBar: AppBar(
+        title: const Text('Timetable Management'),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(text: 'Add Timetable', icon: Icon(Icons.add)),
+            Tab(text: 'View Timetables', icon: Icon(Icons.view_list)),
+            Tab(
+                text: 'Assign Students',
+                icon: Icon(Icons.group_add)), // <-- New Tab
+          ],
         ),
       ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          // Add Timetable Tab
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Form(
+              key: _formKey,
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  TextFormField(
+                    decoration: const InputDecoration(labelText: 'School'),
+                    onSaved: (v) => _school = v,
+                    validator: (v) =>
+                        v == null || v.isEmpty ? 'Required' : null,
+                  ),
+                  TextFormField(
+                    decoration: const InputDecoration(labelText: 'Course Code'),
+                    onSaved: (v) => _courseCode = v,
+                    validator: (v) =>
+                        v == null || v.isEmpty ? 'Required' : null,
+                  ),
+                  TextFormField(
+                    decoration:
+                        const InputDecoration(labelText: 'Course Title'),
+                    onSaved: (v) => _courseTitle = v,
+                    validator: (v) =>
+                        v == null || v.isEmpty ? 'Required' : null,
+                  ),
+                  TextFormField(
+                    decoration: const InputDecoration(labelText: 'Lecturer ID'),
+                    onSaved: (v) => _lecturerId = v,
+                    validator: (v) =>
+                        v == null || v.isEmpty ? 'Required' : null,
+                  ),
+                  TextFormField(
+                    decoration: const InputDecoration(labelText: 'Room'),
+                    onSaved: (v) => _room = v,
+                    validator: (v) =>
+                        v == null || v.isEmpty ? 'Required' : null,
+                  ),
+                  ListTile(
+                    title: Text(_date == null
+                        ? 'Select Date'
+                        : _date!.toLocal().toString().split(' ')[0]),
+                    trailing: const Icon(Icons.calendar_today),
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: DateTime.now(),
+                        firstDate: DateTime(2024),
+                        lastDate: DateTime(2030),
+                      );
+                      if (picked != null) setState(() => _date = picked);
+                    },
+                  ),
+                  ListTile(
+                    title: Text(_startTime == null
+                        ? 'Select Start Time'
+                        : _startTime!.format(context)),
+                    trailing: const Icon(Icons.access_time),
+                    onTap: () async {
+                      final picked = await showTimePicker(
+                        context: context,
+                        initialTime: TimeOfDay.now(),
+                      );
+                      if (picked != null) setState(() => _startTime = picked);
+                    },
+                  ),
+                  ListTile(
+                    title: Text(_endTime == null
+                        ? 'Select End Time'
+                        : _endTime!.format(context)),
+                    trailing: const Icon(Icons.access_time),
+                    onTap: () async {
+                      final picked = await showTimePicker(
+                        context: context,
+                        initialTime: TimeOfDay.now(),
+                      );
+                      if (picked != null) setState(() => _endTime = picked);
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                  BlocConsumer<TimetableManagementBloc, TimetableState>(
+                    listener: (context, state) {
+                      if (state is TimetableSuccess) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Timetable added!')),
+                        );
+                      } else if (state is TimetableFailure) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Error: ${state.error}')),
+                        );
+                      }
+                    },
+                    builder: (context, state) {
+                      if (state is TimetableLoading) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      return ElevatedButton(
+                        onPressed: () async {
+                          if (_formKey.currentState?.validate() ?? false) {
+                            _formKey.currentState?.save();
+                            if (_date == null ||
+                                _startTime == null ||
+                                _endTime == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content:
+                                        Text('Please select date and time')),
+                              );
+                              return;
+                            }
+                            final timetableData = {
+                              'school': _school,
+                              'courseCode': _courseCode,
+                              'courseTitle': _courseTitle,
+                              'lecturerId': _lecturerId,
+                              'room': _room,
+                              'date': _date!.toIso8601String(),
+                              'startTime': _startTime!.format(context),
+                              'endTime': _endTime!.format(context),
+                              'students': [],
+                            };
+                            if (_editingDocId != null) {
+                              // Update existing
+                              await FirebaseFirestore.instance
+                                  .collection('timetables')
+                                  .doc(_editingDocId)
+                                  .update(timetableData);
+                              setState(() {
+                                _editingDocId = null;
+                              });
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text('Timetable updated!')),
+                              );
+                            } else {
+                              // Add new
+                              context
+                                  .read<TimetableManagementBloc>()
+                                  .add(AddTimetable(timetableData));
+                            }
+                            // Optionally clear form fields after submit
+                            _formKey.currentState?.reset();
+                            setState(() {
+                              _date = null;
+                              _startTime = null;
+                              _endTime = null;
+                            });
+                          }
+                        },
+                        child: Text(_editingDocId != null
+                            ? 'Update Timetable'
+                            : 'Add Timetable'),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // View Timetables Tab
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('timetables')
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const Center(child: Text('No timetables found.'));
+                }
+                final timetables = snapshot.data!.docs;
+                return ListView.builder(
+                  itemCount: timetables.length,
+                  itemBuilder: (context, index) {
+                    final doc = timetables[index];
+                    final data = doc.data() as Map<String, dynamic>;
+                    return Card(
+                      child: ListTile(
+                        title: Text(
+                            '${data['courseCode'] ?? ''} - ${data['courseTitle'] ?? ''}'),
+                        subtitle: Text(
+                          'School: ${data['school'] ?? ''}\n'
+                          'Lecturer: ${data['lecturerId'] ?? ''}\n'
+                          'Room: ${data['room'] ?? ''}\n'
+                          'Date: ${data['date']?.toString().split("T")[0] ?? ''}\n'
+                          'Start: ${data['startTime'] ?? ''} - End: ${data['endTime'] ?? ''}',
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.edit, color: Colors.blue),
+                              onPressed: () {
+                                // Pre-fill form fields for editing
+                                setState(() {
+                                  _school = data['school'];
+                                  _courseCode = data['courseCode'];
+                                  _courseTitle = data['courseTitle'];
+                                  _lecturerId = data['lecturerId'];
+                                  _room = data['room'];
+                                  _date = DateTime.tryParse(data['date'] ?? '');
+                                  _startTime =
+                                      _parseTimeOfDay(data['startTime']);
+                                  _endTime = _parseTimeOfDay(data['endTime']);
+                                });
+                                // Show dialog or scroll to form for editing
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: const Text('Edit Timetable'),
+                                    content: const Text(
+                                        'Edit the fields above and press "Update Timetable".'),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context),
+                                        child: const Text('OK'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                // Store the doc id for update
+                                setState(() {
+                                  _editingDocId = doc.id;
+                                });
+                                // Switch to Add Timetable tab
+                                _tabController.animateTo(0);
+                              },
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.red),
+                              onPressed: () async {
+                                await FirebaseFirestore.instance
+                                    .collection('timetables')
+                                    .doc(doc.id)
+                                    .delete();
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                      content: Text('Timetable deleted')),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+          // Assign Students Tab
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('timetables')
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const Center(child: Text('No timetables found.'));
+                }
+                final timetables = snapshot.data!.docs;
+                return ListView.builder(
+                  itemCount: timetables.length,
+                  itemBuilder: (context, index) {
+                    final doc = timetables[index];
+                    final data = doc.data() as Map<String, dynamic>;
+                    final school = data['school'] ?? '';
+                    return Card(
+                      child: ListTile(
+                        title: Text(
+                            '${data['courseCode'] ?? ''} - ${data['courseTitle'] ?? ''}'),
+                        subtitle: Text(
+                          'School: $school\n'
+                          'Lecturer: ${data['lecturerId'] ?? ''}\n'
+                          'Room: ${data['room'] ?? ''}\n'
+                          'Date: ${data['date']?.toString().split("T")[0] ?? ''}\n'
+                          'Start: ${data['startTime'] ?? ''} - End: ${data['endTime'] ?? ''}',
+                        ),
+                        trailing: ElevatedButton.icon(
+                          icon: const Icon(Icons.group_add),
+                          label: const Text('Assign Students'),
+                          onPressed: () async {
+                            final courseCode = data['courseCode'];
+                            if (courseCode == null || courseCode.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text(
+                                        'Course code not specified for this timetable.')),
+                              );
+                              return;
+                            }
+                            // Fetch students registered for this course
+                            final studentsSnapshot = await FirebaseFirestore
+                                .instance
+                                .collection('students')
+                                .where('school', isEqualTo: school)
+                                .where('registeredCourses',
+                                    arrayContains: courseCode)
+                                .get();
+                            final studentIds =
+                                studentsSnapshot.docs.map((d) => d.id).toList();
+                            print(studentIds);
+                            // Assign students to timetable
+                            await FirebaseFirestore.instance
+                                .collection('timetables')
+                                .doc(doc.id)
+                                .update({'students': studentIds});
+
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                  content: Text(
+                                      'Assigned ${studentIds.length} students to timetable.')),
+                            );
+                          },
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
     );
+  }
+
+  TimeOfDay? _parseTimeOfDay(String? time) {
+    if (time == null) return null;
+    final parts = time.split(':');
+    if (parts.length < 2) return null;
+    return TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
   }
 }

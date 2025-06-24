@@ -1,9 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'dart:ui'; // Add this for blur effects
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../../theme/app_theme.dart';
 import '../../../widgets/custom_icon_widget.dart';
-import '../../../widgets/custom_image_widget.dart';
 
 class VenueMapWidget extends StatelessWidget {
   final String fromVenue;
@@ -34,6 +34,8 @@ class VenueMapWidget extends StatelessWidget {
     }
   }
 
+  static const LatLng lerotholiPolytechnic = LatLng(-29.3167, 27.4833);
+
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<Map<String, dynamic>>(
@@ -63,6 +65,7 @@ class VenueMapWidget extends StatelessWidget {
             border: Border.all(color: AppTheme.neutral300, width: 1.5),
             boxShadow: [
               BoxShadow(
+                // ignore: deprecated_member_use
                 color: Colors.black.withOpacity(0.08),
                 blurRadius: 24,
                 offset: const Offset(0, 8),
@@ -72,15 +75,29 @@ class VenueMapWidget extends StatelessWidget {
           clipBehavior: Clip.antiAlias,
           child: Stack(
             children: [
-              // Map background
+              // Google Map background
               ClipRRect(
                 borderRadius: BorderRadius.circular(20),
-                child: const CustomImageWidget(
-                  imageUrl:
-                      "https://images.unsplash.com/photo-1577086664693-894d8405334a?q=80&w=1000&auto=format&fit=crop",
-                  width: double.infinity,
-                  height: double.infinity,
-                  fit: BoxFit.cover,
+                child: GoogleMap(
+                  initialCameraPosition: CameraPosition(
+                    target: lerotholiPolytechnic,
+                    zoom: 17,
+                  ),
+                  markers: {
+                    Marker(
+                      markerId: const MarkerId('lerotholi'),
+                      position: lerotholiPolytechnic,
+                      infoWindow: const InfoWindow(
+                        title: 'Lerotholi Polytechnic',
+                        snippet: 'Maseru, Lesotho',
+                      ),
+                    ),
+                  },
+                  myLocationEnabled: false,
+                  zoomControlsEnabled: false,
+                  liteModeEnabled: true, // Optional: for a lightweight map
+                  mapType: MapType.normal,
+                  onMapCreated: (controller) {},
                 ),
               ),
 
@@ -90,7 +107,9 @@ class VenueMapWidget extends StatelessWidget {
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
+                        // ignore: deprecated_member_use
                         Colors.white.withOpacity(0.08),
+                        // ignore: deprecated_member_use
                         Colors.black.withOpacity(0.10),
                       ],
                       begin: Alignment.topLeft,
@@ -147,14 +166,17 @@ class VenueMapWidget extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
+                        // ignore: deprecated_member_use
                         color: Colors.white.withOpacity(0.25),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
+                          // ignore: deprecated_member_use
                           color: Colors.white.withOpacity(0.2),
                           width: 1.2,
                         ),
                         boxShadow: [
                           BoxShadow(
+                            // ignore: deprecated_member_use
                             color: Colors.black.withOpacity(0.10),
                             blurRadius: 12,
                             offset: const Offset(0, 4),

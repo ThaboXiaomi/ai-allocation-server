@@ -1,17 +1,15 @@
-require("dotenv").config(); // <-- Add this line at the very top
+require("dotenv").config();
 
 const express = require("express");
 const cors = require("cors");
 const admin = require("firebase-admin");
 
-// Use your actual service account file name here:
 const serviceAccount = require("../campus-venue-navigator-firebase-adminsdk-fbsvc-60112e76dd.json");
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
 const db = admin.firestore();
 
-// OpenAI setup
 const { Configuration, OpenAIApi } = require("openai");
 const openai = new OpenAIApi(
   new Configuration({
@@ -23,7 +21,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Endpoint to resolve allocation conflict
+// Root GET route
+app.get('/', (req, res) => {
+  res.send('Welcome to the AI Allocation Server');
+});
+
+// Existing POST endpoint
 app.post("/resolve-conflict", async (req, res) => {
   try {
     const { allocationId, conflictDetails } = req.body;
@@ -38,7 +41,6 @@ app.post("/resolve-conflict", async (req, res) => {
     });
     const suggestion = response.choices[0].message.content;
 
-    // Update Firestore
     await db.collection("allocations").doc(allocationId).update({
       resolvedVenue: suggestion,
       conflict: false,
@@ -48,6 +50,11 @@ app.post("/resolve-conflict", async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
+});
+
+// Catch-all for undefined routes
+app.use((req, res) => {
+  res.status(404).send('Page not found');
 });
 
 const PORT = process.env.PORT || 3000;

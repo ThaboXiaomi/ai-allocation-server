@@ -21,6 +21,10 @@ class _LecturerRegistrationScreenState
   bool _obscure = true;
   bool _isLoading = false;
 
+  String? _selectedCourse; // <-- Added for dropdown
+
+  final List<String> _courses = ['SET', 'SOBE', 'SEM']; // <-- Course options
+
   @override
   void dispose() {
     _nameCtrl.dispose();
@@ -32,6 +36,14 @@ class _LecturerRegistrationScreenState
 
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_selectedCourse == null) {
+      Fluttertoast.showToast(
+        msg: 'Please select a course',
+        backgroundColor: Colors.red,
+        toastLength: Toast.LENGTH_LONG,
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
 
@@ -75,6 +87,7 @@ class _LecturerRegistrationScreenState
         'name': _nameCtrl.text.trim(),
         'staffId': _staffIdCtrl.text.trim(),
         'email': _emailCtrl.text.trim(),
+        'course': _selectedCourse, // <-- Save course
         'createdAt': FieldValue.serverTimestamp(),
       });
       debugPrint('✅ Firestore write succeeded for $uid');
@@ -145,6 +158,27 @@ class _LecturerRegistrationScreenState
                   onPressed: () => setState(() => _obscure = !_obscure),
                 ),
                 validator: (v) => v!.length < 6 ? 'Min 6 characters' : null,
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: _selectedCourse,
+                items: _courses
+                    .map((course) => DropdownMenuItem(
+                          value: course,
+                          child: Text(course),
+                        ))
+                    .toList(),
+                decoration: const InputDecoration(
+                  labelText: 'Select Course',
+                  border: OutlineInputBorder(),
+                ),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedCourse = value;
+                  });
+                },
+                validator: (value) =>
+                    value == null ? 'Please select a course' : null,
               ),
               const SizedBox(height: 24),
               ElevatedButton(

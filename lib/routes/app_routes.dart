@@ -31,7 +31,7 @@ class AppRoutes {
     studentAuth: (_) => const StudentAuthScreen(),
     adminAuth: (_) => const AdminAuthScreen(),
     lecturerAuth: (_) => const LecturerAuthScreen(),
-    studentDashboard: (_) => const StudentDashboard(),
+    studentDashboard: (_) => const StudentDashboardScreen(),
     adminDashboard: (_) => const AdminDashboard(),
     lecturerDashboard: (_) => const LecturerInterface(),
     courseManagement: (_) => const CourseManagement(),
@@ -74,7 +74,7 @@ class AppRoutes {
             return const LecturerInterface();
           case 'student':
           default:
-            return const StudentDashboard();
+            return const StudentDashboardScreen();
         }
       },
     );

@@ -256,7 +256,13 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
           return const Center(child: CircularProgressIndicator());
         }
 
-        if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
+        if (snapshot.hasError) {
+          // Print error to console for debugging
+          print('AllocationTab Firestore error: ${snapshot.error}');
+          return Center(child: Text('Error loading allocations: ${snapshot.error}'));
+        }
+
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return const Center(child: Text('No active allocations found.'));
         }
 
@@ -313,12 +319,16 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
 
   Widget _buildTimelineSection() {
     return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: _fetchTimelineEvents(), // Assuming you have this stream
+      stream: _fetchTimelineEvents(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
-        if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
+        if (snapshot.hasError) {
+          print('TimelineSection Firestore error: ${snapshot.error}');
+          return Center(child: Text('Error loading timeline events: ${snapshot.error}'));
+        }
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return const Center(child: Text('No timeline events found.'));
         }
         final events = snapshot.data!;
@@ -343,8 +353,13 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
           return const Center(child: CircularProgressIndicator());
         }
 
-        if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Center(child: Text('Error loading performance metrics.'));
+        if (snapshot.hasError) {
+          print('PerformanceTab Firestore error: ${snapshot.error}');
+          return Center(child: Text('Error loading performance metrics: ${snapshot.error}'));
+        }
+
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const Center(child: Text('No performance metrics found.'));
         }
 
         final metrics = snapshot.data!;
@@ -448,7 +463,12 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
           return const Center(child: CircularProgressIndicator());
         }
 
-        if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
+        if (snapshot.hasError) {
+          print('DecisionLogTab Firestore error: ${snapshot.error}');
+          return Center(child: Text('Error loading decision logs: ${snapshot.error}'));
+        }
+
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return const Center(child: Text('No decision logs found.'));
         }
 

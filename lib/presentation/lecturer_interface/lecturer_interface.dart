@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../theme/app_theme.dart';
 import '../../widgets/custom_icon_widget.dart';
@@ -27,7 +28,7 @@ class _LecturerInterfaceState extends State<LecturerInterface>
   Stream<List<Map<String, dynamic>>> _lecturesStream = FirebaseFirestore
       .instance
       .collection('timetables')
-      .where('lecturerId', isEqualTo: 'currentLecturerId') // Replace with actual lecturer UID
+      .where('lecturerId', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
       .snapshots()
       .map((snapshot) =>
           snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList());
@@ -48,7 +49,7 @@ class _LecturerInterfaceState extends State<LecturerInterface>
       "icon": "help_outline", // Available in CustomIconWidget
       "title": "Report Issue",
       "color": AppTheme.warning600,
-    },
+    }
     // Add more actions as needed, ensuring icons are in CustomIconWidget
   ];
 
@@ -80,6 +81,8 @@ class _LecturerInterfaceState extends State<LecturerInterface>
     ),
   ];
 
+  final ValueNotifier<bool> _isDarkMode = ValueNotifier(false);
+
   @override
   void initState() {
     super.initState();
@@ -89,6 +92,7 @@ class _LecturerInterfaceState extends State<LecturerInterface>
   @override
   void dispose() {
     _tabController.dispose();
+    _isDarkMode.dispose();
     super.dispose();
   }
 
@@ -139,142 +143,157 @@ class _LecturerInterfaceState extends State<LecturerInterface>
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Scaffold(
-      backgroundColor: AppTheme.neutral100,
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        title: Row(
-          children: [
-            CircleAvatar(
-              radius: 22,
-              backgroundColor: AppTheme.primary100,
-              child: const CustomIconWidget(
-                iconName: 'account_circle',
-                color: AppTheme.primary600,
-                size: 32,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Welcome, Lecturer',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: AppTheme.primary900,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  'Have a productive day!',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: AppTheme.neutral600,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const CustomIconWidget(
-              iconName: 'notifications',
-              color: AppTheme.primary600,
-            ),
-            onPressed: () => _showNotificationsPanel(context),
-            tooltip: 'Notifications',
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFFF8FBFF), Color(0xFFEAF1FB)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-          child: StreamBuilder<List<Map<String, dynamic>>>(
-            stream: _lecturesStream,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (snapshot.hasError) {
-                return const Center(child: Text('Error loading lectures.'));
-              }
-              final lectures = snapshot.data ?? [];
-              return _isCheckedIn && _selectedLectureIndex != -1
-                  ? _buildActiveClassView(lectures[_selectedLectureIndex])
-                  : _buildScheduleView(lectures);
-            },
-          ),
-        ),
-      ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
-          boxShadow: [
-            BoxShadow(
-              color: AppTheme.neutral300.withOpacity(0.13),
-              blurRadius: 18,
-              offset: const Offset(0, -4),
-            ),
-          ],
-        ),
-        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: List.generate(_navItems.length, (index) {
-            final item = _navItems[index];
-            final isSelected = _selectedNavIndex == index;
-            return GestureDetector(
-              onTap: () {
-                setState(() => _selectedNavIndex = index);
-                _onNavTap(index);
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding:
-                    const EdgeInsets.symmetric(vertical: 8, horizontal: 14),
-                decoration: BoxDecoration(
-                  color: isSelected ? AppTheme.primary50 : Colors.transparent,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
+    return ValueListenableBuilder<bool>(
+      valueListenable: _isDarkMode,
+      builder: (context, isDark, _) {
+        return MaterialApp(
+            theme: isDark ? AppTheme.darkTheme : AppTheme.lightTheme,
+            home: Scaffold(
+              endDrawer: _buildSidebarMenu(context, isDark), // <-- right side
+              appBar: AppBar(
+                elevation: 0,
+                backgroundColor: Colors.transparent,
+                title: Row(
                   children: [
-                    CustomIconWidget(
-                      iconName: item.icon,
-                      color: isSelected
-                          ? AppTheme.primary600
-                          : AppTheme.neutral400,
-                      size: 28,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      item.label,
-                      style: TextStyle(
-                        color: isSelected
-                            ? AppTheme.primary700
-                            : AppTheme.neutral400,
-                        fontWeight:
-                            isSelected ? FontWeight.bold : FontWeight.w500,
-                        fontSize: 13,
-                        letterSpacing: 0.1,
+                    CircleAvatar(
+                      radius: 22,
+                      backgroundColor: AppTheme.primary100,
+                      child: const CustomIconWidget(
+                        iconName: 'account_circle',
+                        color: AppTheme.primary600,
+                        size: 32,
                       ),
+                    ),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Welcome, Lecturer',
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    color: AppTheme.primary900,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                        ),
+                        Text(
+                          'Have a productive day!',
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: AppTheme.neutral600,
+                                  ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
+                actions: [
+                  IconButton(
+                    icon: const CustomIconWidget(
+                      iconName: 'notifications',
+                      color: AppTheme.primary600,
+                    ),
+                    onPressed: () => _showNotificationsPanel(context),
+                    tooltip: 'Notifications',
+                  ),
+                ],
               ),
-            );
-          }),
-        ),
-      ),
+              body: SafeArea(
+                child: Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFFF8FBFF), Color(0xFFEAF1FB)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                  child: StreamBuilder<List<Map<String, dynamic>>>(
+                    stream: _lecturesStream,
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      if (snapshot.hasError) {
+                        return const Center(
+                            child: Text('Error loading lectures.'));
+                      }
+                      final lectures = snapshot.data ?? [];
+                      return _isCheckedIn && _selectedLectureIndex != -1
+                          ? _buildActiveClassView(
+                              lectures[_selectedLectureIndex])
+                          : _buildScheduleView(lectures);
+                    },
+                  ),
+                ),
+              ),
+              bottomNavigationBar: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(18)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.neutral300.withOpacity(0.13),
+                      blurRadius: 18,
+                      offset: const Offset(0, -4),
+                    ),
+                  ],
+                ),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: List.generate(_navItems.length, (index) {
+                    final item = _navItems[index];
+                    final isSelected = _selectedNavIndex == index;
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() => _selectedNavIndex = index);
+                        _onNavTap(index);
+                      },
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 8, horizontal: 14),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? AppTheme.primary50
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CustomIconWidget(
+                              iconName: item.icon,
+                              color: isSelected
+                                  ? AppTheme.primary600
+                                  : AppTheme.neutral400,
+                              size: 28,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              item.label,
+                              style: TextStyle(
+                                color: isSelected
+                                    ? AppTheme.primary700
+                                    : AppTheme.neutral400,
+                                fontWeight: isSelected
+                                    ? FontWeight.bold
+                                    : FontWeight.w500,
+                                fontSize: 13,
+                                letterSpacing: 0.1,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+              ),
+            ));
+      },
     );
   }
 
@@ -636,6 +655,132 @@ class _LecturerInterfaceState extends State<LecturerInterface>
           toVenue: lecture["currentVenue"],
         );
       },
+    );
+  }
+
+  Widget _buildSidebarMenu(BuildContext context, bool isDark) {
+    final textColor = isDark ? Colors.white : AppTheme.primary900;
+    final subTextColor = isDark ? Colors.white70 : AppTheme.neutral600;
+    return Drawer(
+      child: SafeArea(
+        child: Column(
+          children: [
+            // Facebook-style header
+            Container(
+              color: AppTheme.primary50,
+              padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 28,
+                    backgroundColor: AppTheme.primary300,
+                    child: const Icon(Icons.person, size: 32, color: Colors.white),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Lecturer',
+                            style: AppTheme.lightTheme.textTheme.titleLarge
+                                ?.copyWith(fontWeight: FontWeight.bold, color: textColor)),
+                        const SizedBox(height: 4),
+                        Text('lecturer@university.edu',
+                            style: AppTheme.lightTheme.textTheme.bodySmall
+                                ?.copyWith(color: subTextColor)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: ListView(
+                children: [
+                  _buildMenuItem(
+                    icon: Icons.dashboard,
+                    label: 'Dashboard',
+                    onTap: () {
+                      Navigator.pop(context);
+                    },
+                    textColor: textColor,
+                  ),
+                  _buildMenuItem(
+                    icon: Icons.schedule,
+                    label: 'My Schedule',
+                    onTap: () {
+                      Navigator.pop(context);
+                      _tabController.animateTo(0);
+                    },
+                    textColor: textColor,
+                  ),
+                  _buildMenuItem(
+                    icon: Icons.notifications,
+                    label: 'Notifications',
+                    onTap: () {
+                      Navigator.pop(context);
+                      _showNotificationsPanel(context);
+                    },
+                    textColor: textColor,
+                  ),
+                  _buildMenuItem(
+                    icon: Icons.map,
+                    label: 'Venue Map',
+                    onTap: () {
+                      Navigator.pop(context);
+                      setState(() => _showMap = true);
+                    },
+                    textColor: textColor,
+                  ),
+                  const Divider(),
+                  SwitchListTile(
+                    secondary: Icon(
+                        _isDarkMode.value ? Icons.dark_mode : Icons.light_mode,
+                        color: textColor),
+                    title: Text('Dark Mode', style: TextStyle(color: textColor)),
+                    value: _isDarkMode.value,
+                    onChanged: (val) => _isDarkMode.value = val,
+                  ),
+                  const Divider(),
+                  ListTile(
+                    leading: const Icon(Icons.logout, color: Colors.red),
+                    title: const Text('Logout',
+                        style: TextStyle(color: Colors.red)),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.pushReplacementNamed(
+                          context, '/lecturer-login');
+                    },
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Text(
+                '© 2025 University Room Allocator',
+                style: TextStyle(color: subTextColor),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMenuItem({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    Color? textColor,
+  }) {
+    return ListTile(
+      leading: Icon(icon, color: AppTheme.primary600),
+      title: Text(label,
+          style: AppTheme.lightTheme.textTheme.bodyLarge
+              ?.copyWith(color: textColor)),
+      onTap: onTap,
     );
   }
 }

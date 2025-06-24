@@ -1,5 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../theme/app_theme.dart';
@@ -26,6 +27,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
   List<Map<String, dynamic>> _roomStatus = [];
   Map<String, dynamic> _analyticsData = {};
   bool _isLoading = true;
+  String _adminName = 'Admin'; // Default name
+  String _adminEmail = 'admin@university.edu'; // Default email
+  final ValueNotifier<bool> _isDarkMode = ValueNotifier(false);
 
   @override
   void initState() {
@@ -43,7 +47,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           .orderBy('time', descending: true)
           .get();
       _notifications = notificationsSnapshot.docs.map((doc) {
-        return {'id': doc.id, ...doc.data() as Map<String, dynamic>};
+        return {'id': doc.id, ...doc.data()};
       }).toList();
 
       // ─── Recent Timetables ─────────────────
@@ -53,21 +57,21 @@ class _AdminDashboardState extends State<AdminDashboard> {
           .limit(5)
           .get();
       _recentTimetables = timetablesSnapshot.docs.map((doc) {
-        return {'id': doc.id, ...doc.data() as Map<String, dynamic>};
+        return {'id': doc.id, ...doc.data()};
       }).toList();
 
       // ─── Faculties ──────────────────────────
       final facultiesSnapshot =
           await FirebaseFirestore.instance.collection('faculties').get();
       _faculties = facultiesSnapshot.docs.map((doc) {
-        return {'id': doc.id, ...doc.data() as Map<String, dynamic>};
+        return {'id': doc.id, ...doc.data()};
       }).toList();
 
       // ─── Room Statuses ──────────────────────
       final roomStatusSnapshot =
           await FirebaseFirestore.instance.collection('rooms').get();
       _roomStatus = roomStatusSnapshot.docs
-          .map((doc) => doc.data() as Map<String, dynamic>)
+          .map((doc) => doc.data())
           .toList();
       // ─── Analytics Data ─────────────────────
       final analyticsSnapshot = await FirebaseFirestore.instance
@@ -90,6 +94,31 @@ class _AdminDashboardState extends State<AdminDashboard> {
         // Missing or wrong type: default to empty list
         _analyticsData['weeklyData'] = <Map<String, dynamic>>[];
       }
+
+      // --- Fetch Admin Details ---
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser != null) {
+        try {
+          final userDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(currentUser.uid)
+              .get();
+          if (userDoc.exists) {
+            final userData = userDoc.data();
+            _adminName = userData?['displayName'] ?? currentUser.displayName ?? 'Admin';
+            _adminEmail = userData?['email'] ?? currentUser.email ?? 'admin@university.edu';
+          } else {
+            // Fallback to FirebaseAuth info if user document doesn't exist
+            _adminName = currentUser.displayName ?? 'Admin';
+            _adminEmail = currentUser.email ?? 'admin@university.edu';
+          }
+        } catch (e) { // Catch error specific to fetching user details
+          debugPrint("Error fetching admin user details: $e");
+          // Keep default/FirebaseAuth info if Firestore fetch fails
+          _adminName = currentUser.displayName ?? 'Admin';
+          _adminEmail = currentUser.email ?? 'admin@university.edu';
+        }
+      }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to fetch data: $e')),
@@ -100,55 +129,215 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }
 
   @override
+  void dispose() {
+    _isDarkMode.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Admin Dashboard'),
-        actions: [
-          IconButton(
-            icon: const CustomIconWidget(
-              iconName: 'notifications',
-              color: Colors.white,
-            ),
-            onPressed: () => _showNotificationsPanel(context),
-          ),
-          IconButton(
-            icon: const CustomIconWidget(
-              iconName: 'settings',
-              color: Colors.white,
-            ),
-            onPressed: () {
-              // Navigate to settings
-            },
-          ),
-          IconButton(
-            icon: const CustomIconWidget(
-              iconName: 'logout',
-              color: Colors.white,
-            ),
-            onPressed: () {
-              Navigator.pushNamed(context, '/admin-login');
-            },
-          ),
-        ],
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SafeArea(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildWelcomeSection(),
-                    const SizedBox(height: 24),
-                    _buildNotificationSummary(),
-                    const SizedBox(height: 24),
-                    _buildDashboardGrid(),
-                  ],
+    return ValueListenableBuilder<bool>(
+      valueListenable: _isDarkMode,
+      builder: (context, isDark, _) {
+        return MaterialApp(
+          theme: isDark ? AppTheme.darkTheme : AppTheme.lightTheme,
+          home: Scaffold(
+            appBar: AppBar(
+              title: const Text('Admin Dashboard'),
+              actions: [
+                IconButton(
+                  icon: const CustomIconWidget(
+                    iconName: 'notifications',
+                    color: Colors.white,
+                  ),
+                  onPressed: () => _showNotificationsPanel(context),
                 ),
+                IconButton(
+                  icon: const CustomIconWidget(
+                    iconName: 'settings',
+                    color: Colors.white,
+                  ),
+                  onPressed: () {
+                    // Navigate to the same admin profile settings page
+                    Navigator.pushNamed(context, '/admin-profile-settings');
+                  },
+                ),
+              ],
+            ),
+            drawer: _buildSidebarMenu(context, isDark), // <-- MOVED TO LEFT SIDE
+            body: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : SafeArea(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildWelcomeSection(),
+                          const SizedBox(height: 24),
+                          _buildNotificationSummary(),
+                          const SizedBox(height: 24),
+                          _buildDashboardGrid(),
+                        ],
+                      ),
+                    ),
+                  ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSidebarMenu(BuildContext context, bool isDark) {
+    final textColor = isDark ? Colors.white : AppTheme.primary900;
+    final subTextColor = isDark ? Colors.white70 : AppTheme.neutral600;
+    return Drawer(
+      child: SafeArea(
+        child: Column(
+          children: [
+            // Facebook-style header
+            Container(
+              color: AppTheme.primary50,
+              padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 28,
+                    backgroundColor: AppTheme.primary300,
+                    child: const Icon(Icons.admin_panel_settings, size: 32, color: Colors.white),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                          Text(_adminName, // Use fetched admin name
+                            style: AppTheme.lightTheme.textTheme.titleLarge
+                                ?.copyWith(fontWeight: FontWeight.bold, color: textColor)),
+                        const SizedBox(height: 4),
+                          Text(_adminEmail, // Use fetched admin email
+                            style: AppTheme.lightTheme.textTheme.bodySmall
+                                ?.copyWith(color: subTextColor)),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
+            const Divider(height: 1),
+            // Menu items
+            Expanded(
+              child: ListView(
+                children: [
+                  _buildMenuItem(
+                    icon: Icons.dashboard,
+                    label: 'Dashboard',
+                    onTap: () {
+                      Navigator.pop(context);
+                    },
+                    textColor: textColor,
+                  ),
+                  _buildMenuItem(
+                    icon: Icons.calendar_today,
+                    label: 'Timetable Management',
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => BlocProvider(
+                            create: (_) => TimetableManagementBloc(
+                              firestore: FirebaseFirestore.instance,
+                            ),
+                            child: TimetableManagementPage(),
+                          ),
+                        ),
+                      );
+                    },
+                    textColor: textColor,
+                  ),
+                  _buildMenuItem(
+                    icon: Icons.school,
+                    label: 'Faculty Management',
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.pushNamed(context, '/faculty-management');
+                    },
+                    textColor: textColor,
+                  ),
+                  _buildMenuItem(
+                    icon: Icons.meeting_room,
+                    label: 'Room Allocation',
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.pushNamed(context, '/venue-management');
+                    },
+                    textColor: textColor,
+                  ),
+                  _buildMenuItem(
+                    icon: Icons.insights,
+                    label: 'System Analytics',
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.pushNamed(context, '/ai-allocation-dashboard');
+                    },
+                    textColor: textColor,
+                  ),
+                  _buildMenuItem(
+                    icon: Icons.settings_applications, // Or Icons.manage_accounts
+                    label: 'Profile Settings',
+                    onTap: () {
+                      Navigator.pop(context); // Close drawer
+                      // TODO: Implement navigation to a dedicated admin profile settings page
+                      Navigator.pushNamed(context, '/admin-profile-settings');
+                    },
+                    textColor: textColor,
+                  ),
+                  const Divider(),
+                  // Dark mode toggle
+                  SwitchListTile(
+                    secondary: Icon(_isDarkMode.value ? Icons.dark_mode : Icons.light_mode, color: textColor),
+                    title: Text('Dark Mode', style: TextStyle(color: textColor)),
+                    value: _isDarkMode.value,
+                    onChanged: (val) => _isDarkMode.value = val,
+                  ),
+                  const Divider(),
+                  // Logout
+                  ListTile(
+                    leading: const Icon(Icons.logout, color: Colors.red),
+                    title: const Text('Logout', style: TextStyle(color: Colors.red)),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.pushReplacementNamed(context, '/admin-login');
+                    },
+                  ),
+                ],
+              ),
+            ),
+            // Facebook-style footer
+            Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Text(
+                '© 2025 Lecturer Room Allocator',
+                style: TextStyle(color: subTextColor),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMenuItem({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    Color? textColor,
+  }) {
+    return ListTile(
+      leading: Icon(icon, color: AppTheme.primary600),
+      title: Text(label, style: AppTheme.lightTheme.textTheme.bodyLarge?.copyWith(color: textColor)),
+      onTap: onTap,
     );
   }
 
@@ -244,7 +433,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   child:
                       TimetableManagementPage(), // You need to create this page
                 ),
-              ),
+              )
             );
           },
           child: _recentTimetables.isEmpty

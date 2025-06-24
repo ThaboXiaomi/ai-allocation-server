@@ -1,9 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../../theme/app_theme.dart';
 import '../../../widgets/custom_icon_widget.dart';
-import '../../../widgets/custom_image_widget.dart';
 
 class VenueMapWidget extends StatelessWidget {
   final String currentBuilding;
@@ -19,15 +19,17 @@ class VenueMapWidget extends StatelessWidget {
 
   Future<Map<String, dynamic>> _fetchVenueData() async {
     try {
+      debugPrint("Fetching venue data for destination: $destination");
       final doc = await FirebaseFirestore.instance
           .collection('venues')
           .doc(destination)
           .get();
 
-      if (doc.exists) {
+      debugPrint("Document exists: ${doc.exists}");
+      if (doc.exists && doc.data() != null) {
         return doc.data()!;
       } else {
-        throw Exception("Venue data not found");
+        throw Exception("Venue data not found for '$destination'");
       }
     } catch (e) {
       throw Exception("Error fetching venue data: $e");
@@ -45,6 +47,8 @@ class VenueMapWidget extends StatelessWidget {
       debugPrint("Error logging navigation history: $e");
     }
   }
+
+  static const LatLng lerotholiPolytechnic = LatLng(-29.3167, 27.4833);
 
   @override
   Widget build(BuildContext context) {
@@ -69,15 +73,29 @@ class VenueMapWidget extends StatelessWidget {
 
         return Stack(
           children: [
-            // Map background
-            Container(
-              width: double.infinity,
-              height: double.infinity,
-              color: AppTheme.neutral100,
-              child: CustomImageWidget(
-                imageUrl: venueData["mapImageUrl"] ??
-                    "https://images.unsplash.com/photo-1577702312572-5bb9328a9f15?q=80&w=1000&auto=format&fit=crop",
-                fit: BoxFit.cover,
+            // Google Map background
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: GoogleMap(
+                initialCameraPosition: CameraPosition(
+                  target: lerotholiPolytechnic,
+                  zoom: 17,
+                ),
+                markers: {
+                  Marker(
+                    markerId: const MarkerId('lerotholi'),
+                    position: lerotholiPolytechnic,
+                    infoWindow: const InfoWindow(
+                      title: 'Lerotholi Polytechnic',
+                      snippet: 'Maseru, Lesotho',
+                    ),
+                  ),
+                },
+                myLocationEnabled: false,
+                zoomControlsEnabled: false,
+                liteModeEnabled: true, // Optional for performance
+                mapType: MapType.normal,
+                onMapCreated: (controller) {},
               ),
             ),
 
@@ -188,7 +206,7 @@ class VenueMapWidget extends StatelessWidget {
               ),
             ),
 
-            // Location markers
+            // Location markers (optional: you may want to adjust or remove these if using Google Map markers)
             Positioned(
               top: 100,
               left: 150,

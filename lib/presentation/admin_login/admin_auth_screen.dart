@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:lecture_room_allocator/theme/app_theme.dart';
 import 'package:lecture_room_allocator/presentation/admin_registration_screen/admin_registration_screen.dart';
+import 'package:lecture_room_allocator/presentation/admin_password_reset/admin_password_reset.dart';
 
 class AdminAuthScreen extends StatefulWidget {
   const AdminAuthScreen({Key? key}) : super(key: key);
@@ -187,6 +188,25 @@ class _AdminAuthScreenState extends State<AdminAuthScreen> {
                     child: Text(
                       "Don't have an account? Register",
                       style: TextStyle(color: Colors.white.withOpacity(.9)),
+                    ),
+                  ),
+
+                  // Forgot Password Link
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const AdminPasswordResetPage(),
+                          ),
+                        );
+                      },
+                      child: Text(
+                        'Forgot Password?',
+                        style: TextStyle(color: AppTheme.primary700.withOpacity(.9)),
+                      ),
                     ),
                   ),
                 ],
