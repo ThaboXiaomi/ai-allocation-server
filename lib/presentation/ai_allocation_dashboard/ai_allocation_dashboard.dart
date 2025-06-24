@@ -16,6 +16,14 @@ class AIAllocationDashboard extends StatefulWidget {
   State<AIAllocationDashboard> createState() => _AIAllocationDashboardState();
 }
 
+// Mock class for demo purposes
+class PerformanceMetrics {
+  final int loadTime;
+  final int memoryUsage;
+
+  PerformanceMetrics(this.loadTime, this.memoryUsage);
+}
+
 class _AIAllocationDashboardState extends State<AIAllocationDashboard>
     with TickerProviderStateMixin {
   late TabController _tabController;
@@ -28,6 +36,7 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    loadPerformanceMetrics(); // Load performance metrics on init
   }
 
   @override
@@ -66,15 +75,24 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
 
   /// Fetch performance metrics from Firestore
   Future<Map<String, dynamic>> _fetchPerformanceMetrics() async {
-    final docSnapshot = await FirebaseFirestore.instance
-        .collection('performanceMetrics')
-        .doc('metrics')
-        .get();
+    try {
+      final docSnapshot = await FirebaseFirestore.instance
+          .collection('performanceMetrics')
+          .doc('metrics')
+          .get();
 
-    if (docSnapshot.exists) {
-      return docSnapshot.data()!;
-    } else {
-      throw Exception('Performance metrics not found');
+      if (docSnapshot.exists) {
+        return docSnapshot.data()!;
+      } else {
+        print('No performance metrics found.');
+        // Optionally show a message in the UI or skip rendering
+        return {};
+      }
+    } catch (e, stack) {
+      print('Error loading performance metrics: $e');
+      print('Stack trace: $stack');
+      // You might want to handle this differently depending on your UI logic
+      return {};
     }
   }
 
@@ -90,6 +108,34 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
                 'id': doc.id,
               };
             }).toList());
+  }
+
+  Future<PerformanceMetrics?> getPerformanceMetrics() async {
+    // Simulate async delay and a possible missing value
+    await Future.delayed(Duration(milliseconds: 500));
+    // return null; // Uncomment to simulate missing data
+    return PerformanceMetrics(1200, 256);
+  }
+
+  // Place this method inside your _AIAllocationDashboardState class:
+  Future<void> loadPerformanceMetrics() async {
+    try {
+      // Simulating a call to fetch performance metrics
+      final metrics = await getPerformanceMetrics();
+
+      if (metrics == null) {
+        print('No performance metrics found.');
+        // Optionally throw or handle gracefully
+        return;
+      }
+
+      // Use your metrics safely here
+      print('Load Time: ${metrics.loadTime}');
+      print('Memory Usage: ${metrics.memoryUsage}');
+    } catch (e) {
+      print('Error fetching performance metrics: $e');
+      // Show user-friendly message or fallback UI
+    }
   }
 
   @override
@@ -159,24 +205,16 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
         controller: _tabController,
         tabs: const [
           Tab(
-            icon: CustomIcons.CustomIconWidget(
-              iconName: 'swap_horiz',
-              color: ThemeAlias.AppTheme.primary600,
-            ),
+            icon: Icon(Icons.event_seat, color: ThemeAlias.AppTheme.primary600),
             text: 'Allocations',
           ),
           Tab(
-            icon: CustomIcons.CustomIconWidget(
-              iconName: 'insights',
-              color: ThemeAlias.AppTheme.primary600,
-            ),
+            icon:
+                Icon(Icons.trending_up, color: ThemeAlias.AppTheme.primary600),
             text: 'Performance',
           ),
           Tab(
-            icon: CustomIcons.CustomIconWidget(
-              iconName: 'history',
-              color: ThemeAlias.AppTheme.primary600,
-            ),
+            icon: Icon(Icons.list_alt, color: ThemeAlias.AppTheme.primary600),
             text: 'Logs',
           ),
         ],
@@ -207,15 +245,18 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
             children: [
               Text(
                 'Filters',
-                style: ThemeAlias.AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600
-                ),
+                style: ThemeAlias.AppTheme.lightTheme.textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w600),
               ),
               IconButton(
-                icon: const CustomIcons.CustomIconWidget(iconName: 'help_outline', color: ThemeAlias.AppTheme.neutral500),
+                icon: const CustomIcons.CustomIconWidget(
+                    iconName: 'help_outline',
+                    color: ThemeAlias.AppTheme.neutral500),
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Filter data across all tabs by faculty, building, or timeframe.')),
+                    const SnackBar(
+                        content: Text(
+                            'Filter data across all tabs by faculty, building, or timeframe.')),
                   );
                 },
                 tooltip: 'About Filters',
@@ -259,7 +300,8 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
         if (snapshot.hasError) {
           // Print error to console for debugging
           print('AllocationTab Firestore error: ${snapshot.error}');
-          return Center(child: Text('Error loading allocations: ${snapshot.error}'));
+          return Center(
+              child: Text('Error loading allocations: ${snapshot.error}'));
         }
 
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
@@ -298,10 +340,14 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
                     style: ThemeAlias.AppTheme.lightTheme.textTheme.titleLarge,
                   ),
                   IconButton(
-                    icon: const CustomIcons.CustomIconWidget(iconName: 'access_time', color: ThemeAlias.AppTheme.neutral500),
+                    icon: const CustomIcons.CustomIconWidget(
+                        iconName: 'access_time',
+                        color: ThemeAlias.AppTheme.neutral500),
                     onPressed: () {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Timeline shows scheduled events for the selected day.')),
+                        const SnackBar(
+                            content: Text(
+                                'Timeline shows scheduled events for the selected day.')),
                       );
                     },
                     tooltip: 'Timeline Information',
@@ -326,7 +372,8 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
         }
         if (snapshot.hasError) {
           print('TimelineSection Firestore error: ${snapshot.error}');
-          return Center(child: Text('Error loading timeline events: ${snapshot.error}'));
+          return Center(
+              child: Text('Error loading timeline events: ${snapshot.error}'));
         }
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return const Center(child: Text('No timeline events found.'));
@@ -338,7 +385,10 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
           itemCount: events.length,
           itemBuilder: (context, index) {
             // Assuming 'id' is the timeSlotId for TimelineItemWidget
-            return TimelineItemWidget(timeSlotId: events[index]['id'], isLast: index == events.length -1,);
+            return TimelineItemWidget(
+              timeSlotId: events[index]['id'],
+              isLast: index == events.length - 1,
+            );
           },
         );
       },
@@ -355,7 +405,9 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
 
         if (snapshot.hasError) {
           print('PerformanceTab Firestore error: ${snapshot.error}');
-          return Center(child: Text('Error loading performance metrics: ${snapshot.error}'));
+          return Center(
+              child:
+                  Text('Error loading performance metrics: ${snapshot.error}'));
         }
 
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
@@ -369,26 +421,33 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildPerformanceIndicatorItem('optimizationRate', 'Optimization Rate'),
+              _buildPerformanceIndicatorItem(
+                  'optimizationRate', 'Optimization Rate'),
               const SizedBox(height: 16),
-              _buildPerformanceIndicatorItem('venueUtilization', 'Venue Utilization'),
+              _buildPerformanceIndicatorItem(
+                  'venueUtilization', 'Venue Utilization'),
               const SizedBox(height: 16),
-              _buildPerformanceIndicatorItem('conflictResolutionRate', 'Conflict Resolution'),
+              _buildPerformanceIndicatorItem(
+                  'conflictResolutionRate', 'Conflict Resolution'),
               const SizedBox(height: 16),
-              _buildPerformanceIndicatorItem('avgWalkingDistance', 'Avg. Walking Distance'),
+              _buildPerformanceIndicatorItem(
+                  'avgWalkingDistance', 'Avg. Walking Distance'),
               const SizedBox(height: 24),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
                     "Performance Trends",
-                     style: ThemeAlias.AppTheme.lightTheme.textTheme.titleLarge,
+                    style: ThemeAlias.AppTheme.lightTheme.textTheme.titleLarge,
                   ),
                   IconButton(
-                    icon: const Icon(Icons.show_chart_outlined, color: ThemeAlias.AppTheme.neutral500),
+                    icon: const Icon(Icons.show_chart_outlined,
+                        color: ThemeAlias.AppTheme.neutral500),
                     onPressed: () {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Chart showing performance trends over time.')),
+                        const SnackBar(
+                            content: Text(
+                                'Chart showing performance trends over time.')),
                       );
                     },
                     tooltip: 'Chart Details',
@@ -418,10 +477,13 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
           ),
         ),
         IconButton(
-          icon: const CustomIcons.CustomIconWidget(iconName: 'insights', color: ThemeAlias.AppTheme.neutral500),
+          icon: const CustomIcons.CustomIconWidget(
+              iconName: 'insights', color: ThemeAlias.AppTheme.neutral500),
           onPressed: () {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Detailed view for $title (document ID: $documentId).')),
+              SnackBar(
+                  content: Text(
+                      'Detailed view for $title (document ID: $documentId).')),
             );
           },
           tooltip: 'View details for $title',
@@ -430,7 +492,8 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
     );
   }
 
-  Widget _buildTimelineTab() { // This function seems to be unused, replaced by _buildTimelineSection
+  Widget _buildTimelineTab() {
+    // This function seems to be unused, replaced by _buildTimelineSection
     return StreamBuilder<List<Map<String, dynamic>>>(
       stream: _fetchTimelineEvents(),
       builder: (context, snapshot) {
@@ -446,7 +509,8 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
           itemCount: events.length,
           itemBuilder: (context, index) {
             return TimelineItemWidget(
-              timeSlotId: events[index]['id'], // Ensure 'id' is the correct field for timeSlotId
+              timeSlotId: events[index]
+                  ['id'], // Ensure 'id' is the correct field for timeSlotId
               isLast: index == events.length - 1,
             );
           },
@@ -465,7 +529,8 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
 
         if (snapshot.hasError) {
           print('DecisionLogTab Firestore error: ${snapshot.error}');
-          return Center(child: Text('Error loading decision logs: ${snapshot.error}'));
+          return Center(
+              child: Text('Error loading decision logs: ${snapshot.error}'));
         }
 
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
@@ -570,7 +635,8 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
         children: [
           Text(
             title,
-            style: ThemeAlias.AppTheme.lightTheme.textTheme?.titleMedium?.copyWith(
+            style:
+                ThemeAlias.AppTheme.lightTheme.textTheme?.titleMedium?.copyWith(
               fontWeight: FontWeight.w600,
             ),
           ),

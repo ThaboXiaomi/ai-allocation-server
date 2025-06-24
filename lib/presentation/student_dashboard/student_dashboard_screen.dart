@@ -38,6 +38,10 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
       });
       return false;
     }
+    // Prevent pop if there's nothing to pop (avoid navigator.dart _history.isNotEmpty error)
+    if (!Navigator.of(context).canPop()) {
+      return false;
+    }
     return true;
   }
 

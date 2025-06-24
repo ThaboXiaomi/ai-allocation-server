@@ -11,6 +11,8 @@ import 'package:lecture_room_allocator/presentation/admin_dashboard/admin_dashbo
 import 'package:lecture_room_allocator/presentation/lecturer_interface/lecturer_interface.dart';
 import 'package:lecture_room_allocator/presentation/course_management/course_management.dart';
 import 'package:lecture_room_allocator/presentation/ai_allocation_dashboard/ai_allocation_dashboard.dart';
+import 'package:lecture_room_allocator/presentation/admin_dashboard/widgets/faculty_item_widget.dart';
+import 'package:lecture_room_allocator/presentation/admin_dashboard/widgets/venue_management_screen.dart'; // <-- Added import
 
 class AppRoutes {
   static const String portalSelection = '/portal-selection';
@@ -25,6 +27,9 @@ class AppRoutes {
 
   static const String courseManagement = '/course-management';
   static const String aiAllocationDashboard = '/ai-allocation-dashboard';
+  static const String facultyManagement = '/faculty-management';
+  static const String venueManagement =
+      '/venue-management'; // <-- Added constant
 
   static final Map<String, WidgetBuilder> routes = {
     portalSelection: (_) => const PortalSelectionScreen(),
@@ -36,6 +41,10 @@ class AppRoutes {
     lecturerDashboard: (_) => const LecturerInterface(),
     courseManagement: (_) => const CourseManagement(),
     aiAllocationDashboard: (_) => const AIAllocationDashboard(),
+    facultyManagement: (_) => const Text(
+        'Faculty Management Screen'), // Placeholder for Faculty Management
+    venueManagement: (_) => const Text(
+        'Venue Management Screen'), // Placeholder for Venue Management
   };
 
   /// Dynamically determine the initial screen based on auth state
@@ -47,10 +56,8 @@ class AppRoutes {
     }
 
     return FutureBuilder<DocumentSnapshot>(
-      future: FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get(),
+      future:
+          FirebaseFirestore.instance.collection('users').doc(user.uid).get(),
       builder: (ctx, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
           return const Scaffold(
