@@ -58,11 +58,15 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) throw Exception("User not logged in");
       final doc = await FirebaseFirestore.instance
-          .collection('students') // <-- Capital "S"
+          .collection('students')
           .doc(user.uid)
           .get();
       if (doc.exists) {
-        setState(() => _studentData = doc.data());
+        final data = doc.data() ?? {};
+        setState(() => _studentData = {
+              ...data,
+              'name': data['name'] ?? 'Unknown',
+            });
       } else {
         setState(() => _studentDataError = "Student profile not found.");
       }
