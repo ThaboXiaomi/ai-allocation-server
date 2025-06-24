@@ -127,17 +127,22 @@
       })(window.history);
     </script>
 
-    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth.js"></script>
-const firebaseConfig = {
-  apiKey: "AIzaSyBoURddxtK4TaMEObowqxM5Q_HMPS1d4Cg",
-  authDomain: "campus-venue-navigator.firebaseapp.com",
-  projectId: "campus-venue-navigator",
-  storageBucket: "campus-venue-navigator.firebasestorage.app",
-  messagingSenderId: "154152922053",
-  appId: "1:154152922053:web:24d9be81213a34a873b9ac"
-};
-      firebase.initializeApp(firebaseConfig);
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js";
+      import { getAuth } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-auth.js";
+
+      const firebaseConfig = {
+        apiKey: "AIzaSyBoURddxtK4TaMEObowqxM5Q_HMPS1d4Cg",
+        authDomain: "campus-venue-navigator.firebaseapp.com",
+        projectId: "campus-venue-navigator",
+        storageBucket: "campus-venue-navigator.firebasestorage.app",
+        messagingSenderId: "154152922053",
+        appId: "1:154152922053:web:24d9be81213a34a873b9ac"
+      };
+
+      // Initialize Firebase
+      const app = initializeApp(firebaseConfig);
+      const auth = getAuth(app);
     </script>
   </body>
 </html>

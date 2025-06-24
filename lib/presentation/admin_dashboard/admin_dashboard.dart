@@ -38,7 +38,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }
 
   Future<void> _fetchData() async {
-    setState(() => _isLoading = true);
+    if (mounted) setState(() => _isLoading = true);
 
     try {
       // ─── Notifications ─────────────────────
@@ -70,9 +70,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       // ─── Room Statuses ──────────────────────
       final roomStatusSnapshot =
           await FirebaseFirestore.instance.collection('rooms').get();
-      _roomStatus = roomStatusSnapshot.docs
-          .map((doc) => doc.data())
-          .toList();
+      _roomStatus = roomStatusSnapshot.docs.map((doc) => doc.data()).toList();
       // ─── Analytics Data ─────────────────────
       final analyticsSnapshot = await FirebaseFirestore.instance
           .collection('analytics')
@@ -105,14 +103,18 @@ class _AdminDashboardState extends State<AdminDashboard> {
               .get();
           if (userDoc.exists) {
             final userData = userDoc.data();
-            _adminName = userData?['displayName'] ?? currentUser.displayName ?? 'Admin';
-            _adminEmail = userData?['email'] ?? currentUser.email ?? 'admin@university.edu';
+            _adminName =
+                userData?['displayName'] ?? currentUser.displayName ?? 'Admin';
+            _adminEmail = userData?['email'] ??
+                currentUser.email ??
+                'admin@university.edu';
           } else {
             // Fallback to FirebaseAuth info if user document doesn't exist
             _adminName = currentUser.displayName ?? 'Admin';
             _adminEmail = currentUser.email ?? 'admin@university.edu';
           }
-        } catch (e) { // Catch error specific to fetching user details
+        } catch (e) {
+          // Catch error specific to fetching user details
           debugPrint("Error fetching admin user details: $e");
           // Keep default/FirebaseAuth info if Firestore fetch fails
           _adminName = currentUser.displayName ?? 'Admin';
@@ -124,7 +126,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         SnackBar(content: Text('Failed to fetch data: $e')),
       );
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -164,7 +166,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 ),
               ],
             ),
-            drawer: _buildSidebarMenu(context, isDark), // <-- MOVED TO LEFT SIDE
+            drawer:
+                _buildSidebarMenu(context, isDark), // <-- MOVED TO LEFT SIDE
             body: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : SafeArea(
@@ -204,18 +207,21 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   CircleAvatar(
                     radius: 28,
                     backgroundColor: AppTheme.primary300,
-                    child: const Icon(Icons.admin_panel_settings, size: 32, color: Colors.white),
+                    child: const Icon(Icons.admin_panel_settings,
+                        size: 32, color: Colors.white),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                          Text(_adminName, // Use fetched admin name
+                        Text(_adminName, // Use fetched admin name
                             style: AppTheme.lightTheme.textTheme.titleLarge
-                                ?.copyWith(fontWeight: FontWeight.bold, color: textColor)),
+                                ?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: textColor)),
                         const SizedBox(height: 4),
-                          Text(_adminEmail, // Use fetched admin email
+                        Text(_adminEmail, // Use fetched admin email
                             style: AppTheme.lightTheme.textTheme.bodySmall
                                 ?.copyWith(color: subTextColor)),
                       ],
@@ -233,7 +239,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     icon: Icons.dashboard,
                     label: 'Dashboard',
                     onTap: () {
-                      Navigator.pop(context);
+                      if (Navigator.of(context).canPop()) {
+                        Navigator.pop(context);
+                      }
                     },
                     textColor: textColor,
                   ),
@@ -284,7 +292,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     textColor: textColor,
                   ),
                   _buildMenuItem(
-                    icon: Icons.settings_applications, // Or Icons.manage_accounts
+                    icon:
+                        Icons.settings_applications, // Or Icons.manage_accounts
                     label: 'Profile Settings',
                     onTap: () {
                       Navigator.pop(context); // Close drawer
@@ -296,8 +305,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   const Divider(),
                   // Dark mode toggle
                   SwitchListTile(
-                    secondary: Icon(_isDarkMode.value ? Icons.dark_mode : Icons.light_mode, color: textColor),
-                    title: Text('Dark Mode', style: TextStyle(color: textColor)),
+                    secondary: Icon(
+                        _isDarkMode.value ? Icons.dark_mode : Icons.light_mode,
+                        color: textColor),
+                    title:
+                        Text('Dark Mode', style: TextStyle(color: textColor)),
                     value: _isDarkMode.value,
                     onChanged: (val) => _isDarkMode.value = val,
                   ),
@@ -305,7 +317,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   // Logout
                   ListTile(
                     leading: const Icon(Icons.logout, color: Colors.red),
-                    title: const Text('Logout', style: TextStyle(color: Colors.red)),
+                    title: const Text('Logout',
+                        style: TextStyle(color: Colors.red)),
                     onTap: () {
                       Navigator.pop(context);
                       Navigator.pushReplacementNamed(context, '/admin-login');
@@ -336,7 +349,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }) {
     return ListTile(
       leading: Icon(icon, color: AppTheme.primary600),
-      title: Text(label, style: AppTheme.lightTheme.textTheme.bodyLarge?.copyWith(color: textColor)),
+      title: Text(label,
+          style: AppTheme.lightTheme.textTheme.bodyLarge
+              ?.copyWith(color: textColor)),
       onTap: onTap,
     );
   }
@@ -424,17 +439,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
           collectionName: 'timetables',
           onTap: () {
             Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => BlocProvider(
-                  create: (_) => TimetableManagementBloc(
-                    firestore: FirebaseFirestore.instance,
+                context,
+                MaterialPageRoute(
+                  builder: (_) => BlocProvider(
+                    create: (_) => TimetableManagementBloc(
+                      firestore: FirebaseFirestore.instance,
+                    ),
+                    child:
+                        TimetableManagementPage(), // You need to create this page
                   ),
-                  child:
-                      TimetableManagementPage(), // You need to create this page
-                ),
-              )
-            );
+                ));
           },
           child: _recentTimetables.isEmpty
               ? const Padding(
