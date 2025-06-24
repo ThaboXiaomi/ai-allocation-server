@@ -75,14 +75,14 @@ class AnalyticsChartWidget extends StatelessWidget {
                     barTouchData: BarTouchData(
                       enabled: true,
                       touchTooltipData: BarTouchTooltipData(
-                        tooltipBgColor: AppTheme.primary600.withAlpha(220),
+                        //tooltipBgColor: AppTheme.primary600.withAlpha(220),
                         tooltipPadding: const EdgeInsets.all(10),
                         tooltipMargin: 12,
                         getTooltipItem: (group, groupIndex, rod, rodIndex) {
                           final conflicts = weeklyData[groupIndex]["conflicts"];
                           return BarTooltipItem(
                             '${weeklyData[groupIndex]["day"]}\n'
-                            'Allocations: ${rod.y.round()}\n'
+                            'Allocations: ${rod.fromY.round()}\n'
                             'Conflicts: $conflicts',
                             const TextStyle(
                               color: Colors.white,
@@ -95,27 +95,41 @@ class AnalyticsChartWidget extends StatelessWidget {
                     ),
                     titlesData: FlTitlesData(
                       show: true,
-                      bottomTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: 36,
-                        getTitles: (value) {
-                          final index = value.toInt();
-                          if (index < 0 || index >= weeklyData.length) {
-                            return '';
-                          }
-                          final day = weeklyData[index]["day"];
-                          return day;
-                        },
+                      bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: 36,
+                          getTitlesWidget: (value, meta) {
+                            final index = value.toInt();
+                            if (index < 0 || index >= weeklyData.length) {
+                              return const SizedBox.shrink();
+                            }
+                            final day = weeklyData[index]["day"];
+                            return Text(
+                              day,
+                              style: Theme.of(context).textTheme.bodySmall,
+                            );
+                          },
+                        ),
                       ),
-                      leftTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: 40,
-                        getTitles: (value) {
-                          return value.toInt().toString();
-                        },
+                      leftTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: 40,
+                          getTitlesWidget: (value, meta) {
+                            return Text(
+                              value.toInt().toString(),
+                              style: Theme.of(context).textTheme.bodySmall,
+                            );
+                          },
+                        ),
                       ),
-                      rightTitles: SideTitles(showTitles: false),
-                      topTitles: SideTitles(showTitles: false),
+                      rightTitles: AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
+                      topTitles: AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
                     ),
                     barGroups: List.generate(
                       weeklyData.length,
@@ -123,14 +137,16 @@ class AnalyticsChartWidget extends StatelessWidget {
                         x: index,
                         barRods: [
                           BarChartRodData(
-                            y: weeklyData[index]["allocations"].toDouble(),
-                            colors: [AppTheme.primary600],
+                            fromY: weeklyData[index]["allocations"].toDouble(),
+                            toY: weeklyData[index]["allocations"].toDouble(),
+                            color: AppTheme.primary600,
                             width: 18,
                             borderRadius: BorderRadius.circular(8),
                             backDrawRodData: BackgroundBarChartRodData(
                               show: true,
-                              y: 160,
-                              colors: [AppTheme.primary100],
+                              fromY: 0,
+                              toY: weeklyData[index]["maxCapacity"].toDouble(),
+                              color: AppTheme.primary100,
                             ),
                           ),
                         ],
