@@ -314,7 +314,14 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
                 const SizedBox(height: 16),
                 if (_lectureSchedule.isNotEmpty)
                   ..._lectureSchedule.map((lecture) => LectureCardWidget(
-                        lecture: lecture,
+                        lecture: {
+                          ...lecture,
+                          "courseCode": lecture["courseCode"]?.toString() ?? "N/A",
+                          "courseTitle": lecture["courseTitle"]?.toString() ?? "N/A",
+                          "instructor": lecture["instructor"]?.toString() ?? "N/A",
+                          "startTime": lecture["startTime"]?.toString() ?? "N/A",
+                          "endTime": lecture["endTime"]?.toString() ?? "N/A",
+                        },
                         onViewMap: () => setState(() => _showMap = true),
                       )),
                 const SizedBox(height: 24),
@@ -353,65 +360,16 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
 
   Widget _buildNextLectureCard() {
     final nextLecture = _lectureSchedule.first;
-    return Card(
-      elevation: 8,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: LinearGradient(
-            colors: [AppTheme.primary800, AppTheme.primary600],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Next Lecture',
-                style: TextStyle(color: Colors.white, fontSize: 16)),
-            const SizedBox(height: 16),
-            Text(
-              nextLecture["courseCode"],
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold),
-            ),
-            Text(
-              nextLecture["courseTitle"],
-              style: const TextStyle(color: Colors.white, fontSize: 18),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                const Icon(Icons.person, color: Colors.white),
-                const SizedBox(width: 8),
-                Text(nextLecture["instructor"] ?? '',
-                    style: const TextStyle(color: Colors.white)),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Icon(Icons.access_time, color: Colors.white),
-                const SizedBox(width: 8),
-                Text('${nextLecture["startTime"]} - ${nextLecture["endTime"]}',
-                    style: const TextStyle(color: Colors.white)),
-              ],
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () => _studentCheckIn(nextLecture["id"]),
-              child: const Text('Check In'),
-              style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: AppTheme.primary700),
-            ),
-          ],
-        ),
-      ),
+    return LectureCardWidget(
+      lecture: {
+        ...nextLecture,
+        "courseCode": nextLecture["courseCode"]?.toString() ?? "N/A",
+        "courseTitle": nextLecture["courseTitle"]?.toString() ?? "N/A",
+        "instructor": nextLecture["instructor"]?.toString() ?? "N/A",
+        "startTime": nextLecture["startTime"]?.toString() ?? "N/A",
+        "endTime": nextLecture["endTime"]?.toString() ?? "N/A",
+      },
+      onViewMap: () => setState(() => _showMap = true),
     );
   }
 

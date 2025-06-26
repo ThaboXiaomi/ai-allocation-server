@@ -89,82 +89,123 @@ class LectureCardWidget extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: isReallocated
-                            ? Colors.amber.shade50
-                            : AppTheme.primary50,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
+                Expanded(
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
                           color: isReallocated
-                              ? Colors.amber.shade300
-                              : AppTheme.primary300,
-                        ),
-                      ),
-                      child: Text(
-                        lecture["courseCode"],
-                        style:
-                            AppTheme.lightTheme.textTheme.titleSmall?.copyWith(
-                          color: isReallocated
-                              ? Colors.amber.shade700
-                              : AppTheme.primary700,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '${lecture["startTime"]} - ${lecture["endTime"]}',
-                          style: AppTheme.lightTheme.textTheme.bodyMedium
-                              ?.copyWith(
-                            fontWeight: FontWeight.w500,
+                              ? Colors.amber.shade50
+                              : AppTheme.primary50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: isReallocated
+                                ? Colors.amber.shade300
+                                : AppTheme.primary300,
                           ),
                         ),
-                        if (isReallocated)
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.book_rounded,
+                              color: isReallocated
+                                  ? Colors.amber.shade700
+                                  : AppTheme.primary700,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              lecture["courseCode"]?.toString() ?? "N/A",
+                              style: AppTheme.lightTheme.textTheme.titleSmall?.copyWith(
+                                color: isReallocated
+                                    ? Colors.amber.shade700
+                                    : AppTheme.primary700,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                           Row(
                             children: [
-                              CustomIconWidget(
-                                iconName: 'warning',
-                                color: Colors.amber.shade600,
-                                size: 14,
+                              Icon(
+                                Icons.access_time_rounded,
+                                color: AppTheme.primary600,
+                                size: 16,
                               ),
                               const SizedBox(width: 4),
                               Text(
-                                'Venue Changed',
-                                style: AppTheme.lightTheme.textTheme.bodySmall
+                                '${lecture["startTime"]?.toString() ?? "N/A"} - ${lecture["endTime"]?.toString() ?? "N/A"}',
+                                style: AppTheme.lightTheme.textTheme.bodyMedium
                                     ?.copyWith(
-                                  color: Colors.amber.shade600,
                                   fontWeight: FontWeight.w500,
                                 ),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ],
                           ),
-                      ],
-                    ),
-                  ],
+                          if (isReallocated)
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.warning_amber_rounded,
+                                  color: Colors.amber.shade600,
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Venue Changed',
+                                  style: AppTheme.lightTheme.textTheme.bodySmall
+                                      ?.copyWith(
+                                    color: Colors.amber.shade600,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: _getStatusColor(lecture["status"]).withAlpha(26),
+                    color: _getStatusColor(lecture["status"]?.toString() ?? "")
+                        .withAlpha(26),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: _getStatusColor(lecture["status"]).withAlpha(77),
+                      color: _getStatusColor(lecture["status"]?.toString() ?? "")
+                          .withAlpha(77),
                     ),
                   ),
-                  child: Text(
-                    _getStatusText(lecture["status"]),
-                    style: AppTheme.lightTheme.textTheme.labelSmall?.copyWith(
-                      color: _getStatusColor(lecture["status"]),
-                      fontWeight: FontWeight.w500,
-                    ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        lecture["status"] == "ongoing"
+                            ? Icons.play_circle_fill_rounded
+                            : lecture["status"] == "completed"
+                                ? Icons.check_circle_rounded
+                                : Icons.schedule_rounded,
+                        color: _getStatusColor(lecture["status"]?.toString() ?? ""),
+                        size: 16,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        _getStatusText(lecture["status"]?.toString() ?? ""),
+                        style: AppTheme.lightTheme.textTheme.labelSmall?.copyWith(
+                          color: _getStatusColor(lecture["status"]?.toString() ?? ""),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -178,7 +219,7 @@ class LectureCardWidget extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  lecture["courseTitle"],
+                  lecture["courseTitle"]?.toString() ?? "N/A",
                   style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w500,
                   ),
@@ -190,12 +231,12 @@ class LectureCardWidget extends StatelessWidget {
                   children: [
                     _buildInfoItem(
                       icon: 'person',
-                      label: lecture["instructor"],
+                      label: lecture["instructor"]?.toString() ?? "N/A",
                     ),
                     const SizedBox(width: 16),
                     _buildInfoItem(
                       icon: 'room',
-                      label: 'Room ${lecture["venue"]}',
+                      label: 'Room ${lecture["venue"]?.toString() ?? "N/A"}',
                       isHighlighted: isReallocated,
                       highlightColor: AppTheme.warning600,
                     ),
@@ -212,9 +253,8 @@ class LectureCardWidget extends StatelessWidget {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        'Changed from Room ${lecture["originalVenue"]}',
-                        style:
-                            AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                        'Changed from Room ${lecture["originalVenue"]?.toString() ?? "N/A"}',
+                        style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
                           color: Colors.amber.shade600,
                         ),
                       ),
@@ -273,10 +313,33 @@ class LectureCardWidget extends StatelessWidget {
     bool isHighlighted = false,
     Color highlightColor = AppTheme.primary600,
   }) {
+    IconData? iconData;
+    switch (icon) {
+      case 'person':
+        iconData = Icons.person_rounded;
+        break;
+      case 'room':
+        iconData = Icons.meeting_room_rounded;
+        break;
+      case 'swap_horiz':
+        iconData = Icons.swap_horiz_rounded;
+        break;
+      case 'warning':
+        iconData = Icons.warning_amber_rounded;
+        break;
+      case 'map':
+        iconData = Icons.map_rounded;
+        break;
+      case 'qr_code_scanner':
+        iconData = Icons.qr_code_scanner_rounded;
+        break;
+      default:
+        iconData = Icons.info_outline_rounded;
+    }
     return Row(
       children: [
-        CustomIconWidget(
-          iconName: icon,
+        Icon(
+          iconData,
           color: isHighlighted ? highlightColor : AppTheme.neutral600,
           size: 16,
         ),
