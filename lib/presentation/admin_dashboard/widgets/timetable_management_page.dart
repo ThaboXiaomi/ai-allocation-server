@@ -21,6 +21,8 @@ class _TimetableManagementPageState extends State<TimetableManagementPage>
   TimeOfDay? _startTime;
   TimeOfDay? _endTime;
   String? _editingDocId;
+  String? _selectedCourseId; // <-- Add this
+  List<Map<String, dynamic>> _courses = []; // <-- Add this
 
   late TabController _tabController;
 
@@ -46,11 +48,16 @@ class _TimetableManagementPageState extends State<TimetableManagementPage>
           tabs: const [
             Tab(text: 'Add Timetable', icon: Icon(Icons.add)),
             Tab(text: 'View Timetables', icon: Icon(Icons.view_list)),
-            Tab(
-                text: 'Assign Students',
-                icon: Icon(Icons.group_add)), // <-- New Tab
+            Tab(text: 'Assign Students', icon: Icon(Icons.group_add)),
           ],
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add_box),
+            tooltip: 'Add Course',
+            onPressed: () => _showAddCourseDialog(context),
+          ),
+        ],
       ),
       body: TabBarView(
         controller: _tabController,
@@ -75,29 +82,50 @@ class _TimetableManagementPageState extends State<TimetableManagementPage>
                       DropdownMenuItem(value: 'SEM', child: Text('SEM')),
                       DropdownMenuItem(value: 'SOBE', child: Text('SOBE')),
                     ],
-                    onChanged: (val) {
+                    onChanged: (val) async {
                       setState(() {
                         _school = val;
-                        _lecturerId =
-                            null; // Reset lecturer when school changes
+                        _lecturerId = null;
+                        _selectedCourseId = null;
                       });
+                      await _fetchCourses(
+                          val); // Fetch courses for selected school
                     },
                     validator: (v) =>
                         v == null || v.isEmpty ? 'Required' : null,
                     onSaved: (v) => _school = v,
                   ),
-                  TextFormField(
-                    decoration: const InputDecoration(labelText: 'Course Code'),
-                    onSaved: (v) => _courseCode = v,
-                    validator: (v) =>
-                        v == null || v.isEmpty ? 'Required' : null,
-                  ),
-                  TextFormField(
-                    decoration:
-                        const InputDecoration(labelText: 'Course Title'),
-                    onSaved: (v) => _courseTitle = v,
-                    validator: (v) =>
-                        v == null || v.isEmpty ? 'Required' : null,
+                  // Course dropdown (filtered by school)
+                  FutureBuilder<List<Map<String, dynamic>>>(
+                    future: _fetchCourses(_school),
+                    builder: (context, snapshot) {
+                      if (_school == null) return const SizedBox();
+                      if (!snapshot.hasData)
+                        return const CircularProgressIndicator();
+                      final courses = snapshot.data!;
+                      return DropdownButtonFormField<String>(
+                        decoration: const InputDecoration(
+                          labelText: 'Course',
+                          prefixIcon: Icon(Icons.book),
+                        ),
+                        value: _selectedCourseId,
+                        items: courses
+                            .map((course) => DropdownMenuItem<String>(
+                                  value: course['id'],
+                                  child: Text(
+                                      '${course['courseCode']} - ${course['courseTitle']}'),
+                                ))
+                            .toList(),
+                        onChanged: (val) {
+                          setState(() {
+                            _selectedCourseId = val;
+                          });
+                        },
+                        validator: (v) =>
+                            v == null || v.isEmpty ? 'Required' : null,
+                        onSaved: (v) => _selectedCourseId = v,
+                      );
+                    },
                   ),
                   // Lecturer dropdown
                   FutureBuilder<List<Map<String, dynamic>>>(
@@ -485,6 +513,87 @@ class _TimetableManagementPageState extends State<TimetableManagementPage>
         .map((doc) => {
               'id': doc.id,
               'name': doc['name'] ?? doc.id,
+            })
+        .toList();
+  }
+
+  // --- Add Course Dialog ---
+  Future<void> _showAddCourseDialog(BuildContext context) async {
+    final _formKey = GlobalKey<FormState>();
+    String? _dialogSchool;
+    String? _dialogCourseCode;
+    String? _dialogCourseTitle;
+
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add Course'),
+        content: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<String>(
+                decoration: const InputDecoration(labelText: 'School'),
+                items: const [
+                  DropdownMenuItem(value: 'SET', child: Text('SET')),
+                  DropdownMenuItem(value: 'SEM', child: Text('SEM')),
+                  DropdownMenuItem(value: 'SOBE', child: Text('SOBE')),
+                ],
+                onChanged: (val) => _dialogSchool = val,
+                validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+              ),
+              TextFormField(
+                decoration: const InputDecoration(labelText: 'Course Code'),
+                onChanged: (v) => _dialogCourseCode = v,
+                validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+              ),
+              TextFormField(
+                decoration: const InputDecoration(labelText: 'Course Title'),
+                onChanged: (v) => _dialogCourseTitle = v,
+                validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (_formKey.currentState?.validate() ?? false) {
+                await FirebaseFirestore.instance.collection('courses').add({
+                  'school': _dialogSchool,
+                  'courseCode': _dialogCourseCode,
+                  'courseTitle': _dialogCourseTitle,
+                });
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Course added!')),
+                );
+              }
+            },
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- Fetch courses for a school ---
+  Future<List<Map<String, dynamic>>> _fetchCourses(String? school) async {
+    if (school == null) return [];
+    final snapshot = await FirebaseFirestore.instance
+        .collection('courses')
+        .where('school', isEqualTo: school)
+        .get();
+    return snapshot.docs
+        .map((doc) => {
+              'id': doc.id,
+              'courseCode': doc['courseCode'],
+              'courseTitle': doc['courseTitle'],
             })
         .toList();
   }

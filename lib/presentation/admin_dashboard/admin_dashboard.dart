@@ -478,10 +478,32 @@ class _AdminDashboardState extends State<AdminDashboard> {
             collectionName: 'faculties',
             onTap: () => Navigator.pushNamed(
                 context, '/faculty-management'), // Example route
-            child: Column(
-              children: _faculties
-                  .map((f) => faculty.FacultyItemWidget(faculty: f))
-                  .toList(),
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('faculties')
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text('Error: ${snapshot.error}'),
+                  );
+                }
+                final faculties = snapshot.data!.docs;
+                return ListView.builder(
+                  itemCount: faculties.length,
+                  itemBuilder: (context, index) {
+                    final doc = faculties[index];
+                    final facultyData = {
+                      'id': doc.id,
+                      ...doc.data() as Map<String, dynamic>
+                    };
+                    return faculty.FacultyItemWidget(faculty: facultyData);
+                  },
+                );
+              },
             ),
           ),
           const SizedBox(height: 16),

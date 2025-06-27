@@ -9,6 +9,7 @@ import './core/utils/pref_utils.dart';
 import './routes/app_routes.dart';
 import './theme/app_theme.dart';
 import 'firebase_options.dart'; // Required for DefaultFirebaseOptions
+import 'package:lecture_room_allocator/presentation/admin_dashboard/widgets/faculty_list_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -86,8 +87,8 @@ class MyApp extends StatelessWidget {
           },
           navigatorKey: NavigatorService.navigatorKey,
           debugShowCheckedModeBanner: false,
-          routes: AppRoutes.routes, // <-- FIX: Use your actual routes map here
-          home: AppRoutes.getInitialScreen(), // ✅ Dynamic routing fix
+          routes: AppRoutes.routes, // <-- Use all routes from AppRoutes
+          home: AppRoutes.getInitialScreen(),
         );
       },
     );
