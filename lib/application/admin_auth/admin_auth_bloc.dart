@@ -5,7 +5,6 @@ import 'package:injectable/injectable.dart';
 
 import 'package:lecture_room_allocator/application/admin_auth/i_admin_auth_facade.dart';
 import 'package:lecture_room_allocator/core/value_objects.dart';
-import 'package:lecture_room_allocator/application/admin_auth/admin_auth_failure.dart' hide AdminAuthFailure;
 
 part 'admin_auth_event.dart';
 part 'admin_auth_state.dart';

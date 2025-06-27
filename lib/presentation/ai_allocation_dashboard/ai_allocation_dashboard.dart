@@ -219,7 +219,7 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
           ),
         ],
         labelColor: AppTheme.primary600,
-        unselectedLabelColor: ThemeAlias.AppTheme.neutral500 ?? Colors.grey,
+        unselectedLabelColor: ThemeAlias.AppTheme.neutral500,
         indicatorColor: AppTheme.primary600,
       ),
     );
@@ -229,7 +229,7 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: ThemeAlias.AppTheme.neutral50 ?? Colors.grey[50],
+        color: ThemeAlias.AppTheme.neutral50,
         border: Border(
           bottom: BorderSide(
             color: ThemeAlias.AppTheme.neutral200,
@@ -414,7 +414,6 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
           return const Center(child: Text('No performance metrics found.'));
         }
 
-        final metrics = snapshot.data!;
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
@@ -492,32 +491,6 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
     );
   }
 
-  Widget _buildTimelineTab() {
-    // This function seems to be unused, replaced by _buildTimelineSection
-    return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: _fetchTimelineEvents(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Center(child: Text('No timeline events found.'));
-        }
-        final events = snapshot.data!;
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: events.length,
-          itemBuilder: (context, index) {
-            return TimelineItemWidget(
-              timeSlotId: events[index]
-                  ['id'], // Ensure 'id' is the correct field for timeSlotId
-              isLast: index == events.length - 1,
-            );
-          },
-        );
-      },
-    );
-  }
 
   Widget _buildDecisionLogTab() {
     return StreamBuilder<List<Map<String, dynamic>>>(
@@ -636,14 +609,14 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
           Text(
             title,
             style:
-                ThemeAlias.AppTheme.lightTheme.textTheme?.titleMedium?.copyWith(
+                ThemeAlias.AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             content,
-            style: ThemeAlias.AppTheme.lightTheme.textTheme?.bodyMedium,
+            style: ThemeAlias.AppTheme.lightTheme.textTheme.bodyMedium,
           ),
         ],
       ),

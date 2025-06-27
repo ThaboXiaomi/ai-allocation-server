@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../theme/app_theme.dart';
-import '../../widgets/custom_icon_widget.dart';
 import './widgets/course_list_item_widget.dart';
 import './widgets/faculty_section_widget.dart';
-import './widgets/filter_chip_widget.dart';
 
 class SearchBarWidget extends StatelessWidget {
   final ValueChanged<String> onSearch;

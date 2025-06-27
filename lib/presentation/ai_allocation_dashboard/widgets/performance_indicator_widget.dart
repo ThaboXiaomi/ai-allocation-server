@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 
 import '../../../theme/app_theme.dart';
 import '../../../widgets/custom_icon_widget.dart';
@@ -31,23 +29,6 @@ class PerformanceIndicatorWidget extends StatelessWidget {
     }
   }
 
-  /// Fetch additional analytics from Gemini API (optional)
-  Future<Map<String, dynamic>> _fetchAnalyticsFromGeminiAPI(String endpoint) async {
-    try {
-      // Replace with your Gemini API endpoint
-      final String apiUrl = 'https://api.gemini.com/$endpoint';
-      final response = await http.get(Uri.parse(apiUrl));
-
-      if (response.statusCode == 200) {
-        return json.decode(response.body) as Map<String, dynamic>;
-      } else {
-        throw Exception('Failed to fetch analytics from Gemini API');
-      }
-    } catch (e) {
-      print('Error fetching analytics from Gemini API: $e');
-      return {};
-    }
-  }
 
   @override
   Widget build(BuildContext context) {

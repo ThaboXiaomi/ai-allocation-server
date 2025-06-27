@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 
 import '../../../theme/app_theme.dart';
 import '../../../widgets/custom_icon_widget.dart';
@@ -35,25 +33,6 @@ class TimelineItemWidget extends StatelessWidget {
     }
   }
 
-  /// Fetch additional analytics from Gemini API (optional)
-  Future<List<Map<String, dynamic>>> _fetchEventAnalyticsFromGeminiAPI(
-      String endpoint) async {
-    try {
-      // Replace with your Gemini API endpoint
-      final String apiUrl = 'https://api.gemini.com/$endpoint';
-      final response = await http.get(Uri.parse(apiUrl));
-
-      if (response.statusCode == 200) {
-        final List<dynamic> responseData = json.decode(response.body);
-        return responseData.map((item) => item as Map<String, dynamic>).toList();
-      } else {
-        throw Exception('Failed to fetch analytics from Gemini API');
-      }
-    } catch (e) {
-      print('Error fetching analytics from Gemini API: $e');
-      return [];
-    }
-  }
 
   @override
   Widget build(BuildContext context) {

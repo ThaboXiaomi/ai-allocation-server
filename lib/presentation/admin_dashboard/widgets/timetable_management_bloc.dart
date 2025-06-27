@@ -1,6 +1,8 @@
 import 'package:bloc/bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:equatable/equatable.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 // Timetable Event
 abstract class TimetableEvent extends Equatable {
@@ -8,7 +10,8 @@ abstract class TimetableEvent extends Equatable {
 }
 
 class AddTimetable extends TimetableEvent {
-  final Map<String, dynamic> timetableData; // Should include: courseId, lecturerId, faculty, room, time, etc.
+  final Map<String, dynamic>
+      timetableData; // Should include: courseId, lecturerId, faculty, room, time, etc.
 
   const AddTimetable(this.timetableData);
 
@@ -57,7 +60,8 @@ class TimetableFailure extends TimetableState {
 
 // New state for loaded lecturers
 class LecturersLoaded extends TimetableState {
-  final List<Map<String, dynamic>> lecturers; // Each lecturer: {id, name, faculty, ...}
+  final List<Map<String, dynamic>>
+      lecturers; // Each lecturer: {id, name, faculty, ...}
 
   const LecturersLoaded(this.lecturers);
 
@@ -69,7 +73,8 @@ class LecturersLoaded extends TimetableState {
 class TimetableManagementBloc extends Bloc<TimetableEvent, TimetableState> {
   final FirebaseFirestore firestore;
 
-  TimetableManagementBloc({required this.firestore}) : super(TimetableInitial()) {
+  TimetableManagementBloc({required this.firestore})
+      : super(TimetableInitial()) {
     on<AddTimetable>(_onAddTimetable);
     on<FetchLecturersByFaculty>(_onFetchLecturersByFaculty);
   }
@@ -104,5 +109,60 @@ class TimetableManagementBloc extends Bloc<TimetableEvent, TimetableState> {
     } catch (e) {
       emit(TimetableFailure(e.toString()));
     }
+  }
+}
+
+class TimetableScreen extends StatefulWidget {
+  const TimetableScreen({Key? key}) : super(key: key);
+
+  @override
+  State<TimetableScreen> createState() => _TimetableScreenState();
+}
+
+class _TimetableScreenState extends State<TimetableScreen> {
+  late ScaffoldMessengerState _scaffoldMessenger;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _scaffoldMessenger = ScaffoldMessenger.of(context);
+  }
+
+  @override
+  void dispose() {
+    // Avoid showing SnackBars in dispose, but you can use _scaffoldMessenger if needed
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Timetable Management'),
+      ),
+      body: BlocConsumer<TimetableManagementBloc, TimetableState>(
+        listener: (context, state) {
+          if (state is TimetableFailure) {
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Error: ${state.error}')),
+            );
+          } else if (state is TimetableSuccess) {
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Timetable added successfully')),
+            );
+          }
+        },
+        builder: (context, state) {
+          if (state is TimetableLoading) {
+            return Center(child: CircularProgressIndicator());
+          }
+          return Center(
+            child: Text('Timetable Screen'),
+          );
+        },
+      ),
+    );
   }
 }

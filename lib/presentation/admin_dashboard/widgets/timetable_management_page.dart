@@ -63,11 +63,28 @@ class _TimetableManagementPageState extends State<TimetableManagementPage>
               child: ListView(
                 shrinkWrap: true,
                 children: [
-                  TextFormField(
-                    decoration: const InputDecoration(labelText: 'School'),
-                    onSaved: (v) => _school = v,
+                  // School dropdown
+                  DropdownButtonFormField<String>(
+                    decoration: const InputDecoration(
+                      labelText: 'School',
+                      prefixIcon: Icon(Icons.school),
+                    ),
+                    value: _school,
+                    items: const [
+                      DropdownMenuItem(value: 'SET', child: Text('SET')),
+                      DropdownMenuItem(value: 'SEM', child: Text('SEM')),
+                      DropdownMenuItem(value: 'SOBE', child: Text('SOBE')),
+                    ],
+                    onChanged: (val) {
+                      setState(() {
+                        _school = val;
+                        _lecturerId =
+                            null; // Reset lecturer when school changes
+                      });
+                    },
                     validator: (v) =>
                         v == null || v.isEmpty ? 'Required' : null,
+                    onSaved: (v) => _school = v,
                   ),
                   TextFormField(
                     decoration: const InputDecoration(labelText: 'Course Code'),
@@ -82,17 +99,71 @@ class _TimetableManagementPageState extends State<TimetableManagementPage>
                     validator: (v) =>
                         v == null || v.isEmpty ? 'Required' : null,
                   ),
-                  TextFormField(
-                    decoration: const InputDecoration(labelText: 'Lecturer ID'),
-                    onSaved: (v) => _lecturerId = v,
-                    validator: (v) =>
-                        v == null || v.isEmpty ? 'Required' : null,
+                  // Lecturer dropdown
+                  FutureBuilder<List<Map<String, dynamic>>>(
+                    future: _fetchLecturers(_school),
+                    builder: (context, snapshot) {
+                      if (_school == null) {
+                        return const SizedBox(); // Wait for school selection
+                      }
+                      if (!snapshot.hasData) {
+                        return const CircularProgressIndicator();
+                      }
+                      final lecturers = snapshot.data!;
+                      return DropdownButtonFormField<String>(
+                        decoration: const InputDecoration(
+                          labelText: 'Lecturer',
+                          prefixIcon: Icon(Icons.person),
+                        ),
+                        value: _lecturerId,
+                        items: lecturers
+                            .map<DropdownMenuItem<String>>(
+                                (lecturer) => DropdownMenuItem<String>(
+                                      value: lecturer['id'] as String,
+                                      child: Text(lecturer['name'] as String),
+                                    ))
+                            .toList(),
+                        onChanged: (val) {
+                          setState(() {
+                            _lecturerId = val;
+                          });
+                        },
+                        validator: (v) =>
+                            v == null || v.isEmpty ? 'Required' : null,
+                        onSaved: (v) => _lecturerId = v,
+                      );
+                    },
                   ),
-                  TextFormField(
-                    decoration: const InputDecoration(labelText: 'Room'),
-                    onSaved: (v) => _room = v,
-                    validator: (v) =>
-                        v == null || v.isEmpty ? 'Required' : null,
+                  // Room selection dropdown
+                  FutureBuilder<List<String>>(
+                    future: _fetchAvailableRooms(),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) {
+                        return const CircularProgressIndicator();
+                      }
+                      final rooms = snapshot.data!;
+                      return DropdownButtonFormField<String>(
+                        decoration: const InputDecoration(
+                          labelText: 'Room',
+                          prefixIcon: Icon(Icons.meeting_room), // Room icon
+                        ),
+                        value: _room,
+                        items: rooms
+                            .map((room) => DropdownMenuItem(
+                                  value: room,
+                                  child: Text(room),
+                                ))
+                            .toList(),
+                        onChanged: (val) {
+                          setState(() {
+                            _room = val;
+                          });
+                        },
+                        validator: (v) =>
+                            v == null || v.isEmpty ? 'Required' : null,
+                        onSaved: (v) => _room = v,
+                      );
+                    },
                   ),
                   ListTile(
                     title: Text(_date == null
@@ -263,6 +334,8 @@ class _TimetableManagementPageState extends State<TimetableManagementPage>
                                   _startTime =
                                       _parseTimeOfDay(data['startTime']);
                                   _endTime = _parseTimeOfDay(data['endTime']);
+                                  _editingDocId =
+                                      doc.id; // <-- Make sure to set this!
                                 });
                                 // Show dialog or scroll to form for editing
                                 showDialog(
@@ -279,10 +352,6 @@ class _TimetableManagementPageState extends State<TimetableManagementPage>
                                     ],
                                   ),
                                 );
-                                // Store the doc id for update
-                                setState(() {
-                                  _editingDocId = doc.id;
-                                });
                                 // Switch to Add Timetable tab
                                 _tabController.animateTo(0);
                               },
@@ -396,5 +465,27 @@ class _TimetableManagementPageState extends State<TimetableManagementPage>
     final parts = time.split(':');
     if (parts.length < 2) return null;
     return TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
+  }
+
+  Future<List<String>> _fetchAvailableRooms() async {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('lecture_rooms')
+        .where('status', isEqualTo: 'Available')
+        .get();
+    return snapshot.docs.map((doc) => doc['name'] as String).toList();
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchLecturers(String? school) async {
+    if (school == null) return [];
+    final snapshot = await FirebaseFirestore.instance
+        .collection('lecturers')
+        .where('school', isEqualTo: school)
+        .get();
+    return snapshot.docs
+        .map((doc) => {
+              'id': doc.id,
+              'name': doc['name'] ?? doc.id,
+            })
+        .toList();
   }
 }

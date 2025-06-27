@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 import '../../../theme/app_theme.dart';
 import '../../../widgets/custom_icon_widget.dart';
 
@@ -53,24 +51,6 @@ class _AllocationFilterWidgetState extends State<AllocationFilterWidget> {
     }
   }
 
-  /// Fetch additional filter options from Gemini API (optional)
-  Future<List<String>> _fetchOptionsFromGeminiAPI(String endpoint) async {
-    try {
-      // Replace with your Gemini API endpoint
-      final String apiUrl = 'https://api.gemini.com/$endpoint';
-      final response = await http.get(Uri.parse(apiUrl));
-
-      if (response.statusCode == 200) {
-        final List<dynamic> responseData = json.decode(response.body);
-        return responseData.map((item) => item['name'] as String).toList();
-      } else {
-        throw Exception('Failed to fetch data from Gemini API');
-      }
-    } catch (e) {
-      print('Error fetching data from Gemini API: $e');
-      return [];
-    }
-  }
 
   @override
   Widget build(BuildContext context) {

@@ -21,9 +21,13 @@ class _LecturerRegistrationScreenState
   bool _obscure = true;
   bool _isLoading = false;
 
-  String? _selectedCourse; // <-- Added for dropdown
+  String? _selectedSchool; // <-- Changed from _selectedCourse
 
-  final List<String> _courses = ['SET', 'SOBE', 'SEM']; // <-- Course options
+  final List<String> _schools = [
+    'SET',
+    'SOBE',
+    'SEM'
+  ]; // <-- Changed from _courses
 
   @override
   void dispose() {
@@ -36,9 +40,9 @@ class _LecturerRegistrationScreenState
 
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedCourse == null) {
+    if (_selectedSchool == null) {
       Fluttertoast.showToast(
-        msg: 'Please select a course',
+        msg: 'Please select a school',
         backgroundColor: Colors.red,
         toastLength: Toast.LENGTH_LONG,
       );
@@ -50,11 +54,11 @@ class _LecturerRegistrationScreenState
     UserCredential? userCredential;
     // ──────────────── AUTH STEP ────────────────
     try {
-      userCredential = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(
-            email: _emailCtrl.text.trim(),
-            password: _passCtrl.text.trim(),
-          );
+      userCredential =
+          await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: _emailCtrl.text.trim(),
+        password: _passCtrl.text.trim(),
+      );
       debugPrint('✅ Auth user created: ${userCredential.user!.uid}');
     } on FirebaseAuthException catch (e, st) {
       debugPrint('🔴 FirebaseAuthException: $e\n$st');
@@ -79,15 +83,12 @@ class _LecturerRegistrationScreenState
     // ───────────── FIRESTORE STEP ─────────────
     try {
       final uid = userCredential!.user!.uid;
-      await FirebaseFirestore.instance
-          .collection('lecturers')
-          .doc(uid)
-          .set({
+      await FirebaseFirestore.instance.collection('lecturers').doc(uid).set({
         'uid': uid,
         'name': _nameCtrl.text.trim(),
         'staffId': _staffIdCtrl.text.trim(),
         'email': _emailCtrl.text.trim(),
-        'course': _selectedCourse, // <-- Save course
+        'school': _selectedSchool, // <-- Save as "school"
         'createdAt': FieldValue.serverTimestamp(),
       });
       debugPrint('✅ Firestore write succeeded for $uid');
@@ -143,8 +144,9 @@ class _LecturerRegistrationScreenState
                 controller: _emailCtrl,
                 label: 'Email',
                 keyboardType: TextInputType.emailAddress,
-                validator: (v) =>
-                    v!.isEmpty || !v.contains('@') ? 'Enter a valid email' : null,
+                validator: (v) => v!.isEmpty || !v.contains('@')
+                    ? 'Enter a valid email'
+                    : null,
               ),
               const SizedBox(height: 12),
               _buildField(
@@ -161,24 +163,24 @@ class _LecturerRegistrationScreenState
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: _selectedCourse,
-                items: _courses
-                    .map((course) => DropdownMenuItem(
-                          value: course,
-                          child: Text(course),
+                value: _selectedSchool,
+                items: _schools
+                    .map((school) => DropdownMenuItem(
+                          value: school,
+                          child: Text(school),
                         ))
                     .toList(),
                 decoration: const InputDecoration(
-                  labelText: 'Select Course',
+                  labelText: 'Select School',
                   border: OutlineInputBorder(),
                 ),
                 onChanged: (value) {
                   setState(() {
-                    _selectedCourse = value;
+                    _selectedSchool = value;
                   });
                 },
                 validator: (value) =>
-                    value == null ? 'Please select a course' : null,
+                    value == null ? 'Please select a school' : null,
               ),
               const SizedBox(height: 24),
               ElevatedButton(
