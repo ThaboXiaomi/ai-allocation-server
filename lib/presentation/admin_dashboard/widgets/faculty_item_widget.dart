@@ -78,12 +78,12 @@ class FacultyItemWidget extends StatelessWidget {
                     final docRef = FirebaseFirestore.instance
                         .collection('faculties')
                         .doc(faculty['id']);
-                    await docRef.update({
-                      'studentCount': (faculty['studentCount'] ?? 0) + 1
-                    });
+                    await docRef.update(
+                        {'studentCount': (faculty['studentCount'] ?? 0) + 1});
                   },
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(24),
@@ -152,7 +152,8 @@ class FacultyItemWidget extends StatelessWidget {
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: timetables.length,
                   itemBuilder: (context, index) {
-                    final data = timetables[index].data() as Map<String, dynamic>;
+                    final data =
+                        timetables[index].data() as Map<String, dynamic>;
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 4.0),
                       child: ListTile(
@@ -173,7 +174,8 @@ class FacultyItemWidget extends StatelessWidget {
                           style: theme.textTheme.bodySmall,
                         ),
                         dense: true,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
                       ),
                     );
                   },
@@ -205,7 +207,11 @@ class FacultyListScreen extends StatelessWidget {
           return ListView.builder(
             itemCount: faculties.length,
             itemBuilder: (context, index) {
-              final faculty = faculties[index].data() as Map<String, dynamic>;
+              final doc = faculties[index];
+              final faculty = {
+                'id': doc.id,
+                ...doc.data() as Map<String, dynamic>
+              };
               return FacultyItemWidget(faculty: faculty);
             },
           );

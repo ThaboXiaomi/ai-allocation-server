@@ -11,8 +11,8 @@ import 'package:lecture_room_allocator/presentation/admin_dashboard/admin_dashbo
 import 'package:lecture_room_allocator/presentation/lecturer_interface/lecturer_interface.dart';
 import 'package:lecture_room_allocator/presentation/course_management/course_management.dart';
 import 'package:lecture_room_allocator/presentation/ai_allocation_dashboard/ai_allocation_dashboard.dart';
-import 'package:lecture_room_allocator/presentation/admin_dashboard/widgets/faculty_item_widget.dart';
 import 'package:lecture_room_allocator/presentation/admin_dashboard/widgets/venue_management_screen.dart';
+import 'package:lecture_room_allocator/presentation/admin_dashboard/widgets/faculty_list_screen.dart' as fls;
 
 class AppRoutes {
   static const String portalSelection = '/portal-selection';
@@ -30,6 +30,7 @@ class AppRoutes {
   static const String facultyManagement = '/faculty-management';
   static const String venueManagement =
       '/venue-management'; // <-- Added constant
+  static const String facultyList = '/faculty-list';
 
   static final Map<String, WidgetBuilder> routes = {
     portalSelection: (_) => const PortalSelectionScreen(),
@@ -41,9 +42,9 @@ class AppRoutes {
     lecturerDashboard: (_) => const LecturerInterface(),
     courseManagement: (_) => const CourseManagement(),
     aiAllocationDashboard: (_) => const AIAllocationDashboard(),
-    facultyManagement: (_) => const Text('Faculty Management Screen'), // Placeholder for Faculty Management Screen
-    venueManagement: (_) =>
-        const VenueManagementScreen(), // Use your real screen
+    facultyManagement: (_) => fls.FacultyListScreen(),
+    venueManagement: (_) => const VenueManagementScreen(),
+    facultyList: (_) => fls.FacultyListScreen(),
   };
 
   /// Dynamically determine the initial screen based on auth state
