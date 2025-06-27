@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../theme/app_theme.dart';
 import '../../../widgets/custom_icon_widget.dart';
 
-class LectureCardWidget extends StatelessWidget {
+class LectureCardWidget extends StatefulWidget {
   final Map<String, dynamic> lecture;
   final VoidCallback onViewMap;
 
@@ -15,49 +15,170 @@ class LectureCardWidget extends StatelessWidget {
     required this.onViewMap,
   }) : super(key: key);
 
-  Future<void> _handleCheckIn(BuildContext context) async {
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
-        throw Exception("User not logged in");
-      }
+  @override
+  State<LectureCardWidget> createState() => _LectureCardWidgetState();
+}
 
-      final lectureId = lecture["id"];
-      final checkInRef = FirebaseFirestore.instance
-          .collection('lectures')
-          .doc(lectureId)
-          .collection('attendance')
-          .doc(user.uid);
+class _LectureCardWidgetState extends State<LectureCardWidget> {
+  bool _isClockedIn = false;
+  bool _loading = false;
 
-      // Check if the user has already checked in
-      final checkInDoc = await checkInRef.get();
-      if (checkInDoc.exists) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("You have already checked in.")),
-        );
-        return;
-      }
+  @override
+  void initState() {
+    super.initState();
+    _checkClockInStatus();
+  }
 
-      // Record the check-in
-      await checkInRef.set({
-        "timestamp": FieldValue.serverTimestamp(),
-        "userId": user.uid,
+  Future<void> _checkClockInStatus() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final timetableId = widget.lecture["id"];
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+
+    final existing = await FirebaseFirestore.instance
+        .collection('student_check_ins')
+        .where('studentId', isEqualTo: user.uid)
+        .where('timetableId', isEqualTo: timetableId)
+        .where('date', isEqualTo: today)
+        .get();
+
+    setState(() {
+      _isClockedIn = existing.docs.isNotEmpty;
+    });
+  }
+
+  Future<void> _clockIn() async {
+    setState(() => _loading = true);
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final timetableId = widget.lecture["id"];
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+
+    // Check if already clocked in
+    final existing = await FirebaseFirestore.instance
+        .collection('student_check_ins')
+        .where('studentId', isEqualTo: user.uid)
+        .where('timetableId', isEqualTo: timetableId)
+        .where('date', isEqualTo: today)
+        .get();
+
+    if (existing.docs.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Already clocked in for this lecture.')),
+      );
+      setState(() => _loading = false);
+      return;
+    }
+
+    await FirebaseFirestore.instance.collection('student_check_ins').add({
+      'studentId': user.uid,
+      'timetableId': timetableId,
+      'timestamp': FieldValue.serverTimestamp(),
+      'date': today,
+    });
+
+    // Send notification to Admin and Lecturer
+    await _sendClockInNotification('clock_in');
+
+    setState(() {
+      _isClockedIn = true;
+      _loading = false;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Clock-in successful!')),
+    );
+  }
+
+  Future<void> _unclockIn() async {
+    setState(() => _loading = true);
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final timetableId = widget.lecture["id"];
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+
+    final existing = await FirebaseFirestore.instance
+        .collection('student_check_ins')
+        .where('studentId', isEqualTo: user.uid)
+        .where('timetableId', isEqualTo: timetableId)
+        .where('date', isEqualTo: today)
+        .get();
+
+    if (existing.docs.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('You have not clocked in yet.')),
+      );
+      setState(() => _loading = false);
+      return;
+    }
+
+    for (var doc in existing.docs) {
+      await doc.reference.delete();
+    }
+
+    // Send notification to Admin and Lecturer
+    await _sendClockInNotification('unclock_in');
+
+    setState(() {
+      _isClockedIn = false;
+      _loading = false;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Unclock-in successful!')),
+    );
+  }
+
+  Future<void> _sendClockInNotification(String type) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final timetableId = widget.lecture["id"];
+    final courseTitle = widget.lecture["courseTitle"] ?? "";
+    final courseCode = widget.lecture["courseCode"] ?? "";
+    final studentName = user.displayName ?? user.email ?? "Student";
+    final now = DateTime.now();
+
+    // Send to admin
+    await FirebaseFirestore.instance.collection('notifications').add({
+      'type': type,
+      'target': 'admin',
+      'studentId': user.uid,
+      'timetableId': timetableId,
+      'courseTitle': courseTitle,
+      'courseCode': courseCode,
+      'studentName': studentName,
+      'timestamp': now,
+      'message': type == 'clock_in'
+          ? '$studentName clocked in for $courseCode - $courseTitle'
+          : '$studentName unclocked-in for $courseCode - $courseTitle',
+      'isRead': false,
+    });
+
+    // Send to lecturer (assuming lecturerId is in lecture data)
+    final lecturerId = widget.lecture["lecturerId"];
+    if (lecturerId != null) {
+      await FirebaseFirestore.instance.collection('notifications').add({
+        'type': type,
+        'target': 'lecturer',
+        'lecturerId': lecturerId,
+        'studentId': user.uid,
+        'timetableId': timetableId,
+        'courseTitle': courseTitle,
+        'courseCode': courseCode,
+        'studentName': studentName,
+        'timestamp': now,
+        'message': type == 'clock_in'
+            ? '$studentName clocked in for $courseCode - $courseTitle'
+            : '$studentName unclocked-in for $courseCode - $courseTitle',
+        'isRead': false,
       });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Check-in successful!")),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error during check-in: $e")),
-      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final lecture = widget.lecture;
     final bool isReallocated = lecture["isReallocated"] ?? false;
-    final bool isCheckInAvailable = lecture["checkInAvailable"] ?? false;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -116,7 +237,7 @@ class LectureCardWidget extends StatelessWidget {
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              lecture["courseCode"]?.toString() ?? "N/A",
+                              lecture["courseCode"]?.toString() ?? "",
                               style: AppTheme.lightTheme.textTheme.titleSmall?.copyWith(
                                 color: isReallocated
                                     ? Colors.amber.shade700
@@ -141,7 +262,7 @@ class LectureCardWidget extends StatelessWidget {
                               ),
                               const SizedBox(width: 4),
                               Text(
-                                '${lecture["startTime"]?.toString() ?? "N/A"} - ${lecture["endTime"]?.toString() ?? "N/A"}',
+                                '${lecture["startTime"]?.toString() ?? ""} - ${lecture["endTime"]?.toString() ?? ""}',
                                 style: AppTheme.lightTheme.textTheme.bodyMedium
                                     ?.copyWith(
                                   fontWeight: FontWeight.w500,
@@ -218,25 +339,32 @@ class LectureCardWidget extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  lecture["courseTitle"]?.toString() ?? "N/A",
-                  style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                // Show all lecture details as in Firebase
+                Row(
+                  children: [
+                    Icon(Icons.info_outline_rounded, color: AppTheme.primary600, size: 18),
+                    const SizedBox(width: 6),
+                    Text(
+                      lecture["courseTitle"]?.toString() ?? "",
+                      style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 8),
                 Row(
                   children: [
                     _buildInfoItem(
                       icon: 'person',
-                      label: lecture["instructor"]?.toString() ?? "N/A",
+                      label: lecture["instructor"]?.toString() ?? "",
                     ),
                     const SizedBox(width: 16),
                     _buildInfoItem(
                       icon: 'room',
-                      label: 'Room ${lecture["venue"]?.toString() ?? "N/A"}',
+                      label: 'Room ${lecture["venue"]?.toString() ?? ""}',
                       isHighlighted: isReallocated,
                       highlightColor: AppTheme.warning600,
                     ),
@@ -253,7 +381,7 @@ class LectureCardWidget extends StatelessWidget {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        'Changed from Room ${lecture["originalVenue"]?.toString() ?? "N/A"}',
+                        'Changed from Room ${lecture["originalVenue"]?.toString() ?? ""}',
                         style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
                           color: Colors.amber.shade600,
                         ),
@@ -261,37 +389,55 @@ class LectureCardWidget extends StatelessWidget {
                     ],
                   ),
                 ],
-
-                // Action buttons
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    _buildInfoItem(
+                      icon: 'calendar_today',
+                      label: 'Date: ${lecture["date"]?.toString() ?? ""}',
+                    ),
+                    const SizedBox(width: 16),
+                    _buildInfoItem(
+                      icon: 'schedule',
+                      label: 'Time: ${lecture["startTime"]?.toString() ?? ""} - ${lecture["endTime"]?.toString() ?? ""}',
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 16),
                 Row(
                   children: [
-                    if (isCheckInAvailable) ...[
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          icon: const CustomIconWidget(
-                            iconName: 'qr_code_scanner',
-                            color: Colors.white,
-                            size: 18,
-                          ),
-                          label: const Text('Check In'),
-                          onPressed: () => _handleCheckIn(context),
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 10),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                    ],
                     Expanded(
-                      child: OutlinedButton.icon(
-                        icon: const CustomIconWidget(
-                          iconName: 'map',
-                          color: AppTheme.primary600,
+                      child: ElevatedButton.icon(
+                        icon: Icon(
+                          _isClockedIn ? Icons.logout_rounded : Icons.login_rounded,
+                          color: Colors.white,
                           size: 18,
                         ),
+                        label: Text(_isClockedIn ? 'Unclock-in' : 'Clock-in'),
+                        onPressed: _loading
+                            ? null
+                            : () async {
+                                if (_isClockedIn) {
+                                  await _unclockIn();
+                                } else {
+                                  await _clockIn();
+                                }
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _isClockedIn
+                              ? Colors.redAccent
+                              : AppTheme.primary600,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.map_rounded, color: AppTheme.primary600, size: 18),
                         label: const Text('View Map'),
-                        onPressed: onViewMap,
+                        onPressed: widget.onViewMap,
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 10),
                         ),
@@ -332,6 +478,12 @@ class LectureCardWidget extends StatelessWidget {
         break;
       case 'qr_code_scanner':
         iconData = Icons.qr_code_scanner_rounded;
+        break;
+      case 'calendar_today':
+        iconData = Icons.calendar_today_rounded;
+        break;
+      case 'schedule':
+        iconData = Icons.schedule_rounded;
         break;
       default:
         iconData = Icons.info_outline_rounded;

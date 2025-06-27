@@ -66,7 +66,7 @@ class _AdminRegistrationScreenState extends State<AdminRegistrationScreen> {
 
     // ─────────────── FIRESTORE WRITE ───────────────
     try {
-      final uid = userCredential!.user!.uid;
+      final uid = userCredential.user!.uid;
       await FirebaseFirestore.instance
           .collection('admins')
           .doc(uid)

@@ -2,8 +2,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import 'package:lecture_room_allocator/widgets/custom_icon_widget.dart'
-    as common;
 import '../../theme/app_theme.dart';
 import './widgets/attendance_stats_widget.dart';
 import './widgets/lecture_card_widget.dart';
@@ -21,7 +19,6 @@ class StudentDashboardScreen extends StatefulWidget {
 
 class _StudentDashboardScreenState extends State<StudentDashboardScreen>
     with SingleTickerProviderStateMixin {
-  late TabController _tabController;
   bool _showMap = false;
 
   Map<String, dynamic>? _studentData;
@@ -38,14 +35,13 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
   String? _lectureScheduleError;
   String? _notificationsError;
   String? _attendanceDataError;
-  String? _settingsError; // New error variable for settings update
 
   final ValueNotifier<bool> _isDarkMode = ValueNotifier(false);
+  int _selectedIndex = 0; // Add this for bottom navigation
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     _fetchStudentData();
     _fetchLectureSchedule();
     _fetchNotifications();
@@ -87,7 +83,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
           .where('students', arrayContains: user.uid)
           .get();
       setState(() => _lectureSchedule = querySnapshot.docs
-          .map((doc) => {"id": doc.id, ...doc.data() as Map<String, dynamic>})
+          .map((doc) => {"id": doc.id, ...doc.data()})
           .toList());
     } catch (e) {
       setState(
@@ -108,7 +104,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
           .orderBy('timestamp', descending: true)
           .get();
       setState(() => _notifications = querySnapshot.docs
-          .map((doc) => {"id": doc.id, ...doc.data() as Map<String, dynamic>})
+          .map((doc) => {"id": doc.id, ...doc.data()})
           .toList());
     } catch (e) {
       setState(() => _notificationsError = "Failed to load notifications.");
@@ -138,43 +134,9 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
     }
   }
 
-  // Function to handle student check-in
-  Future<void> _studentCheckIn(String timetableId) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-    try {
-      final existing = await FirebaseFirestore.instance
-          .collection('student_check_ins')
-          .where('studentId', isEqualTo: user.uid)
-          .where('timetableId', isEqualTo: timetableId)
-          .where('date',
-              isEqualTo: DateTime.now().toIso8601String().substring(0, 10))
-          .get();
-      if (existing.docs.isNotEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Already checked in for this lecture.')),
-        );
-        return;
-      }
-      await FirebaseFirestore.instance.collection('student_check_ins').add({
-        'studentId': user.uid,
-        'timetableId': timetableId,
-        'timestamp': FieldValue.serverTimestamp(),
-        'date': DateTime.now().toIso8601String().substring(0, 10),
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Check-in successful!')),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Check-in failed: $e')),
-      );
-    }
-  }
 
   @override
   void dispose() {
-    _tabController.dispose();
     _isDarkMode.dispose();
     super.dispose();
   }
@@ -222,24 +184,31 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
                                     : Column(
                                         children: [
                                           _buildStudentHeader(),
-                                          TabBar(
-                                            controller: _tabController,
-                                            tabs: const [
-                                              Tab(text: 'Today'),
-                                              Tab(text: 'Schedule'),
-                                            ],
-                                          ),
                                           Expanded(
-                                            child: TabBarView(
-                                              controller: _tabController,
-                                              children: [
-                                                _buildTodayTab(),
-                                                _buildScheduleTab(),
-                                              ],
-                                            ),
+                                            child: _selectedIndex == 0
+                                                ? _buildTodayTab()
+                                                : _buildScheduleTab(),
                                           ),
                                         ],
                                       ),
+            bottomNavigationBar: BottomNavigationBar(
+              currentIndex: _selectedIndex,
+              onTap: (index) {
+                setState(() {
+                  _selectedIndex = index;
+                });
+              },
+              items: const [
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.today_rounded),
+                  label: 'Today',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.schedule_rounded),
+                  label: 'Schedule',
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -307,20 +276,26 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
               children: [
                 if (_lectureSchedule.isNotEmpty) _buildNextLectureCard(),
                 const SizedBox(height: 24),
-                const Text(
-                  "Today's Schedule",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 16),
                 if (_lectureSchedule.isNotEmpty)
                   ..._lectureSchedule.map((lecture) => LectureCardWidget(
                         lecture: {
                           ...lecture,
-                          "courseCode": lecture["courseCode"]?.toString() ?? "N/A",
-                          "courseTitle": lecture["courseTitle"]?.toString() ?? "N/A",
-                          "instructor": lecture["instructor"]?.toString() ?? "N/A",
-                          "startTime": lecture["startTime"]?.toString() ?? "N/A",
-                          "endTime": lecture["endTime"]?.toString() ?? "N/A",
+                          // Only use fallback if the value is null or empty string
+                          "courseCode": (lecture["courseCode"] != null && lecture["courseCode"].toString().trim().isNotEmpty)
+                              ? lecture["courseCode"].toString()
+                              : "",
+                          "courseTitle": (lecture["courseTitle"] != null && lecture["courseTitle"].toString().trim().isNotEmpty)
+                              ? lecture["courseTitle"].toString()
+                              : "",
+                          "instructor": (lecture["instructor"] != null && lecture["instructor"].toString().trim().isNotEmpty)
+                              ? lecture["instructor"].toString()
+                              : "",
+                          "startTime": (lecture["startTime"] != null && lecture["startTime"].toString().trim().isNotEmpty)
+                              ? lecture["startTime"].toString()
+                              : "",
+                          "endTime": (lecture["endTime"] != null && lecture["endTime"].toString().trim().isNotEmpty)
+                              ? lecture["endTime"].toString()
+                              : "",
                         },
                         onViewMap: () => setState(() => _showMap = true),
                       )),
@@ -350,7 +325,24 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
             ? [const Center(child: Text("No lectures scheduled."))]
             : _lectureSchedule
                 .map((lecture) => LectureCardWidget(
-                      lecture: lecture,
+                      lecture: {
+                        ...lecture,
+                        "courseCode": (lecture["courseCode"] != null && lecture["courseCode"].toString().trim().isNotEmpty)
+                            ? lecture["courseCode"].toString()
+                            : "",
+                        "courseTitle": (lecture["courseTitle"] != null && lecture["courseTitle"].toString().trim().isNotEmpty)
+                            ? lecture["courseTitle"].toString()
+                            : "",
+                        "instructor": (lecture["instructor"] != null && lecture["instructor"].toString().trim().isNotEmpty)
+                            ? lecture["instructor"].toString()
+                            : "",
+                        "startTime": (lecture["startTime"] != null && lecture["startTime"].toString().trim().isNotEmpty)
+                            ? lecture["startTime"].toString()
+                            : "",
+                        "endTime": (lecture["endTime"] != null && lecture["endTime"].toString().trim().isNotEmpty)
+                            ? lecture["endTime"].toString()
+                            : "",
+                      },
                       onViewMap: () => setState(() => _showMap = true),
                     ))
                 .toList(),
@@ -363,11 +355,21 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
     return LectureCardWidget(
       lecture: {
         ...nextLecture,
-        "courseCode": nextLecture["courseCode"]?.toString() ?? "N/A",
-        "courseTitle": nextLecture["courseTitle"]?.toString() ?? "N/A",
-        "instructor": nextLecture["instructor"]?.toString() ?? "N/A",
-        "startTime": nextLecture["startTime"]?.toString() ?? "N/A",
-        "endTime": nextLecture["endTime"]?.toString() ?? "N/A",
+        "courseCode": (nextLecture["courseCode"] != null && nextLecture["courseCode"].toString().trim().isNotEmpty)
+            ? nextLecture["courseCode"].toString()
+            : "",
+        "courseTitle": (nextLecture["courseTitle"] != null && nextLecture["courseTitle"].toString().trim().isNotEmpty)
+            ? nextLecture["courseTitle"].toString()
+            : "",
+        "instructor": (nextLecture["instructor"] != null && nextLecture["instructor"].toString().trim().isNotEmpty)
+            ? nextLecture["instructor"].toString()
+            : "",
+        "startTime": (nextLecture["startTime"] != null && nextLecture["startTime"].toString().trim().isNotEmpty)
+            ? nextLecture["startTime"].toString()
+            : "",
+        "endTime": (nextLecture["endTime"] != null && nextLecture["endTime"].toString().trim().isNotEmpty)
+            ? nextLecture["endTime"].toString()
+            : "",
       },
       onViewMap: () => setState(() => _showMap = true),
     );
@@ -380,7 +382,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
         QuickActionButtonWidget(
           icon: 'calendar_today',
           label: 'Full Schedule',
-          onTap: () => _tabController.animateTo(1),
+          onTap: () => _selectedIndex = 1,
         ),
         QuickActionButtonWidget(
           icon: 'email',
@@ -470,51 +472,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
     );
   }
 
-  void _showAttendanceStatsPanel(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-      builder: (context) {
-        return DraggableScrollableSheet(
-          initialChildSize: 0.6,
-          minChildSize: 0.3,
-          maxChildSize: 0.9,
-          expand: false,
-          builder: (context, scrollController) {
-            return Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('Attendance Statistics',
-                          style: TextStyle(
-                              fontSize: 20, fontWeight: FontWeight.bold)),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: SingleChildScrollView(
-                    controller: scrollController,
-                    padding: const EdgeInsets.all(16),
-                    child: AttendanceStatsWidget(
-                        attendanceData: _attendanceData ?? {}),
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
 
   Widget _buildLatestNotificationSection() {
     if (_notifications.isEmpty) {
@@ -633,7 +590,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
                     label: 'My Schedule',
                     onTap: () {
                       Navigator.pop(context);
-                      _tabController.animateTo(0);
+                      _selectedIndex = 0;
                     },
                     textColor: textColor,
                   ),

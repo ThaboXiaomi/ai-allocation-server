@@ -12,7 +12,7 @@ import 'package:lecture_room_allocator/presentation/lecturer_interface/lecturer_
 import 'package:lecture_room_allocator/presentation/course_management/course_management.dart';
 import 'package:lecture_room_allocator/presentation/ai_allocation_dashboard/ai_allocation_dashboard.dart';
 import 'package:lecture_room_allocator/presentation/admin_dashboard/widgets/faculty_item_widget.dart';
-import 'package:lecture_room_allocator/presentation/admin_dashboard/widgets/venue_management_screen.dart'; // <-- Added import
+import 'package:lecture_room_allocator/presentation/admin_dashboard/widgets/venue_management_screen.dart';
 
 class AppRoutes {
   static const String portalSelection = '/portal-selection';
@@ -41,10 +41,9 @@ class AppRoutes {
     lecturerDashboard: (_) => const LecturerInterface(),
     courseManagement: (_) => const CourseManagement(),
     aiAllocationDashboard: (_) => const AIAllocationDashboard(),
-    facultyManagement: (_) => const Text(
-        'Faculty Management Screen'), // Placeholder for Faculty Management
-    venueManagement: (_) => const Text(
-        'Venue Management Screen'), // Placeholder for Venue Management
+    facultyManagement: (_) => const Text('Faculty Management Screen'), // Placeholder for Faculty Management Screen
+    venueManagement: (_) =>
+        const VenueManagementScreen(), // Use your real screen
   };
 
   /// Dynamically determine the initial screen based on auth state

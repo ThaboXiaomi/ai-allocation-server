@@ -1,7 +1,3 @@
-// ignore_for_file: unused_import
-
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // For orientation control
@@ -12,7 +8,6 @@ import './core/utils/navigator_service.dart';
 import './core/utils/pref_utils.dart';
 import './routes/app_routes.dart';
 import './theme/app_theme.dart';
-import './widgets/custom_icon_widget.dart' as common;
 import 'firebase_options.dart'; // Required for DefaultFirebaseOptions
 
 Future<void> main() async {
@@ -27,8 +22,10 @@ Future<void> main() async {
   } catch (e) {
     // Log the detailed error to the console. This is crucial for debugging.
     print("CRITICAL: Firebase initialization failed: $e");
-    print("Please ensure you have run 'flutterfire configure' and that your Firebase project setup is correct.");
-    print("Check for missing or misconfigured google-services.json (Android) or GoogleService-Info.plist (iOS) if not using DefaultFirebaseOptions.");
+    print(
+        "Please ensure you have run 'flutterfire configure' and that your Firebase project setup is correct.");
+    print(
+        "Check for missing or misconfigured google-services.json (Android) or GoogleService-Info.plist (iOS) if not using DefaultFirebaseOptions.");
 
     // Display an error screen to the user.
     runApp(FirebaseErrorScreen(error: e.toString()));
@@ -89,8 +86,7 @@ class MyApp extends StatelessWidget {
           },
           navigatorKey: NavigatorService.navigatorKey,
           debugShowCheckedModeBanner: false,
-          routes: AppRoutes.routes,
-          // Use dynamic home screen instead of static initialRoute
+          routes: AppRoutes.routes, // <-- FIX: Use your actual routes map here
           home: AppRoutes.getInitialScreen(), // ✅ Dynamic routing fix
         );
       },
