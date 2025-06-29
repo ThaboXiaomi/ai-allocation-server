@@ -21,15 +21,15 @@ class _TimetableManagementPageState extends State<TimetableManagementPage>
   TimeOfDay? _startTime;
   TimeOfDay? _endTime;
   String? _editingDocId;
-  String? _selectedCourseId; // <-- Add this
-  List<Map<String, dynamic>> _courses = []; // <-- Add this
+  String? _selectedCourseId;
+  List<Map<String, dynamic>> _courses = [];
 
   late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this); // <-- Change to 3
+    _tabController = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -87,9 +87,10 @@ class _TimetableManagementPageState extends State<TimetableManagementPage>
                         _school = val;
                         _lecturerId = null;
                         _selectedCourseId = null;
+                        _courseCode = null;
+                        _courseTitle = null;
                       });
-                      await _fetchCourses(
-                          val); // Fetch courses for selected school
+                      await _fetchCourses(val);
                     },
                     validator: (v) =>
                         v == null || v.isEmpty ? 'Required' : null,
@@ -119,11 +120,25 @@ class _TimetableManagementPageState extends State<TimetableManagementPage>
                         onChanged: (val) {
                           setState(() {
                             _selectedCourseId = val;
+                            final selectedCourse = courses.firstWhere(
+                                (c) => c['id'] == val,
+                                orElse: () => {});
+                            _courseCode = selectedCourse['courseCode'] ?? '';
+                            _courseTitle = selectedCourse['courseTitle'] ?? '';
                           });
                         },
                         validator: (v) =>
                             v == null || v.isEmpty ? 'Required' : null,
-                        onSaved: (v) => _selectedCourseId = v,
+                        onSaved: (v) {
+                          _selectedCourseId = v;
+                          if (v != null) {
+                            final selectedCourse = courses.firstWhere(
+                                (c) => c['id'] == v,
+                                orElse: () => {});
+                            _courseCode = selectedCourse['courseCode'] ?? '';
+                            _courseTitle = selectedCourse['courseTitle'] ?? '';
+                          }
+                        },
                       );
                     },
                   ),
@@ -132,7 +147,7 @@ class _TimetableManagementPageState extends State<TimetableManagementPage>
                     future: _fetchLecturers(_school),
                     builder: (context, snapshot) {
                       if (_school == null) {
-                        return const SizedBox(); // Wait for school selection
+                        return const SizedBox();
                       }
                       if (!snapshot.hasData) {
                         return const CircularProgressIndicator();
@@ -173,7 +188,7 @@ class _TimetableManagementPageState extends State<TimetableManagementPage>
                       return DropdownButtonFormField<String>(
                         decoration: const InputDecoration(
                           labelText: 'Room',
-                          prefixIcon: Icon(Icons.meeting_room), // Room icon
+                          prefixIcon: Icon(Icons.meeting_room),
                         ),
                         value: _room,
                         items: rooms
@@ -265,6 +280,15 @@ class _TimetableManagementPageState extends State<TimetableManagementPage>
                               );
                               return;
                             }
+                            if ((_courseCode == null || _courseCode!.isEmpty) ||
+                                (_courseTitle == null || _courseTitle!.isEmpty)) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text(
+                                        'Please select a valid course.')),
+                              );
+                              return;
+                            }
                             final timetableData = {
                               'school': _school,
                               'courseCode': _courseCode,
@@ -295,12 +319,14 @@ class _TimetableManagementPageState extends State<TimetableManagementPage>
                                   .read<TimetableManagementBloc>()
                                   .add(AddTimetable(timetableData));
                             }
-                            // Optionally clear form fields after submit
                             _formKey.currentState?.reset();
                             setState(() {
                               _date = null;
                               _startTime = null;
                               _endTime = null;
+                              _courseCode = null;
+                              _courseTitle = null;
+                              _selectedCourseId = null;
                             });
                           }
                         },
@@ -351,7 +377,6 @@ class _TimetableManagementPageState extends State<TimetableManagementPage>
                             IconButton(
                               icon: const Icon(Icons.edit, color: Colors.blue),
                               onPressed: () {
-                                // Pre-fill form fields for editing
                                 setState(() {
                                   _school = data['school'];
                                   _courseCode = data['courseCode'];
@@ -362,10 +387,9 @@ class _TimetableManagementPageState extends State<TimetableManagementPage>
                                   _startTime =
                                       _parseTimeOfDay(data['startTime']);
                                   _endTime = _parseTimeOfDay(data['endTime']);
-                                  _editingDocId =
-                                      doc.id; // <-- Make sure to set this!
+                                  _editingDocId = doc.id;
+                                  _selectedCourseId = null;
                                 });
-                                // Show dialog or scroll to form for editing
                                 showDialog(
                                   context: context,
                                   builder: (context) => AlertDialog(
@@ -380,7 +404,6 @@ class _TimetableManagementPageState extends State<TimetableManagementPage>
                                     ],
                                   ),
                                 );
-                                // Switch to Add Timetable tab
                                 _tabController.animateTo(0);
                               },
                             ),
@@ -427,6 +450,7 @@ class _TimetableManagementPageState extends State<TimetableManagementPage>
                     final doc = timetables[index];
                     final data = doc.data() as Map<String, dynamic>;
                     final school = data['school'] ?? '';
+                    final courseTitle = data['courseTitle'] ?? '';
                     return Card(
                       child: ListTile(
                         title: Text(
@@ -442,22 +466,20 @@ class _TimetableManagementPageState extends State<TimetableManagementPage>
                           icon: const Icon(Icons.group_add),
                           label: const Text('Assign Students'),
                           onPressed: () async {
-                            final school = data['school'];
-                            final courseCode = data['courseCode'];
                             final timetableDocId = doc.id;
 
-                            if (courseCode == null || courseCode.isEmpty) {
+                            if (courseTitle.isEmpty) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
                                     content: Text(
-                                        'Course code not specified for this timetable.')),
+                                        'Course title not specified for this timetable.')),
                               );
                               return;
                             }
 
                             await assignStudents(
                               school: school,
-                              courseCode: courseCode,
+                              courseTitle: courseTitle,
                               timetableDocId: timetableDocId,
                               context: context,
                             );
@@ -588,51 +610,81 @@ class _TimetableManagementPageState extends State<TimetableManagementPage>
   // --- Assign students to timetable ---
   Future<void> assignStudents({
     required String school,
-    required String courseCode,
+    required String courseTitle,
     required String timetableDocId,
     required BuildContext context,
   }) async {
-    // Show loading
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator()),
-    );
+    final studentsSnapshot = await FirebaseFirestore.instance
+        .collection('students')
+        .where('school', isEqualTo: school)
+        .where('courses', arrayContains: courseTitle)
+        .get();
 
-    try {
-      final studentsSnapshot = await FirebaseFirestore.instance
-          .collection('students')
-          .where('school', isEqualTo: school)
-          .where('registeredCourses', arrayContains: courseCode)
-          .get();
+    final students = studentsSnapshot.docs;
 
-      final studentIds = studentsSnapshot.docs.map((d) => d.id).toList();
-
-      if (studentIds.isEmpty) {
-        Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('No students registered for this course.')),
-        );
-        return;
-      }
-
-      await FirebaseFirestore.instance
-          .collection('timetables')
-          .doc(timetableDocId)
-          .update({'students': studentIds});
-
-      Navigator.of(context).pop();
+    if (students.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content:
-                Text('Successfully assigned ${studentIds.length} students.')),
+        const SnackBar(content: Text('No students registered for this course.')),
       );
-    } catch (e) {
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error assigning students: $e')),
-      );
+      return;
     }
+
+    List<String> selectedStudentIds = students.map((d) => d.id).toList();
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Assign Students'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView(
+              shrinkWrap: true,
+              children: students.map((doc) {
+                final data = doc.data() as Map<String, dynamic>;
+                final studentId = doc.id;
+                return CheckboxListTile(
+                  value: selectedStudentIds.contains(studentId),
+                  title: Text('${data['name']} (${data['matricNo']})'),
+                  subtitle: Text(data['email'] ?? ''),
+                  onChanged: (checked) {
+                    if (checked == true) {
+                      if (!selectedStudentIds.contains(studentId)) {
+                        selectedStudentIds.add(studentId);
+                      }
+                    } else {
+                      selectedStudentIds.remove(studentId);
+                    }
+                    (context as Element).markNeedsBuild();
+                  },
+                );
+              }).toList(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                await FirebaseFirestore.instance
+                    .collection('timetables')
+                    .doc(timetableDocId)
+                    .update({'students': selectedStudentIds});
+                Navigator.of(context).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                        'Successfully assigned ${selectedStudentIds.length} students.'),
+                  ),
+                );
+              },
+              child: const Text('Assign'),
+            ),
+          ],
+        );
+      },
+    );
   }
 }
