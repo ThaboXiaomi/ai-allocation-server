@@ -32,11 +32,36 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
   String _selectedTimeframe = 'Today';
   bool _isRealTimeUpdates = true;
 
+  List<String> _faculties = ['All'];
+  List<String> _buildings = ['All'];
+  List<String> _timeframes = ['Today', 'This Week', 'This Month'];
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    loadPerformanceMetrics(); // Load performance metrics on init
+    loadPerformanceMetrics();
+    _loadFilterOptions();
+  }
+
+  Future<void> _loadFilterOptions() async {
+    // Example Firestore fetch for faculties and buildings
+    final facultiesSnapshot =
+        await FirebaseFirestore.instance.collection('faculties').get();
+    final buildingsSnapshot =
+        await FirebaseFirestore.instance.collection('buildings').get();
+
+    setState(() {
+      _faculties = [
+        'All',
+        ...facultiesSnapshot.docs.map((doc) => doc['name'] as String)
+      ];
+      _buildings = [
+        'All',
+        ...buildingsSnapshot.docs.map((doc) => doc['name'] as String)
+      ];
+      // _timeframes can be static or fetched similarly
+    });
   }
 
   @override
@@ -268,6 +293,9 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
             selectedFaculty: _selectedFaculty,
             selectedBuilding: _selectedBuilding,
             selectedTimeframe: _selectedTimeframe,
+            facultyList: _faculties, // Pass the lists here
+            buildingList: _buildings,
+            timeframeList: _timeframes,
             onFacultyChanged: (value) {
               setState(() {
                 _selectedFaculty = value;
@@ -414,7 +442,6 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
           return const Center(child: Text('No performance metrics found.'));
         }
 
-
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -491,7 +518,6 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
     );
   }
 
-
   Widget _buildDecisionLogTab() {
     return StreamBuilder<List<Map<String, dynamic>>>(
       stream: _fetchDecisionLogs(),
@@ -554,7 +580,13 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('AI Allocation Dashboard Help'),
+          title: Row(
+            children: [
+              Icon(Icons.help_outline, color: ThemeAlias.AppTheme.primary600),
+              const SizedBox(width: 8),
+              const Text('AI Allocation Dashboard Help'),
+            ],
+          ),
           content: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

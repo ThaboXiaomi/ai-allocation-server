@@ -20,9 +20,19 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
   bool _obscure = true;
   bool _isLoading = false;
 
-  String? _selectedCourse;
+  String? _selectedSchool;
+  List<String> _selectedCourses = []; // <-- Add this line to hold selected courses
+  int? _selectedYear;
+  int? _selectedSemester;
 
-  final List<String> _courses = ['SET', 'SOBE', 'SEM'];
+  final List<String> _schools = ['SET', 'SOBE', 'SEM'];
+  List<String> _courses = [];
+  final List<int> _years = [1, 2, 3];
+  final Map<int, List<int>> _yearToSemesters = {
+    1: [1, 2],
+    2: [3, 4],
+    3: [5, 6],
+  };
 
   @override
   void dispose() {
@@ -33,11 +43,54 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
     super.dispose();
   }
 
+  Future<void> _fetchCourses(String school) async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('courses')
+          .where('school', isEqualTo: school)
+          .get();
+      setState(() {
+        _courses = snapshot.docs.map((doc) => doc['courseTitle'] as String).toList();
+        _selectedCourses = [];
+      });
+    } catch (e) {
+      Fluttertoast.showToast(
+        msg: 'Failed to load courses',
+        backgroundColor: Colors.red,
+        toastLength: Toast.LENGTH_LONG,
+      );
+    }
+  }
+
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedCourse == null) {
+    if (_selectedSchool == null) {
       Fluttertoast.showToast(
-        msg: 'Please select a course',
+        msg: 'Please select a school',
+        backgroundColor: Colors.red,
+        toastLength: Toast.LENGTH_LONG,
+      );
+      return;
+    }
+    if (_selectedCourses.isEmpty) {
+      Fluttertoast.showToast(
+        msg: 'Please select at least one course',
+        backgroundColor: Colors.red,
+        toastLength: Toast.LENGTH_LONG,
+      );
+      return;
+    }
+    if (_selectedYear == null) {
+      Fluttertoast.showToast(
+        msg: 'Please select year of study',
+        backgroundColor: Colors.red,
+        toastLength: Toast.LENGTH_LONG,
+      );
+      return;
+    }
+    if (_selectedSemester == null) {
+      Fluttertoast.showToast(
+        msg: 'Please select semester',
         backgroundColor: Colors.red,
         toastLength: Toast.LENGTH_LONG,
       );
@@ -84,7 +137,10 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
         'name': _nameCtrl.text.trim(),
         'matricNo': _matricNoCtrl.text.trim(),
         'email': _emailCtrl.text.trim(),
-        'course': _selectedCourse,
+        'school': _selectedSchool,
+        'courses': _selectedCourses, // Save as a list
+        'year': _selectedYear,
+        'semester': _selectedSemester,
         'createdAt': FieldValue.serverTimestamp(),
       });
       debugPrint('✅ Firestore write succeeded for $uid');
@@ -158,24 +214,141 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: _selectedCourse,
-                items: _courses
-                    .map((course) => DropdownMenuItem(
-                          value: course,
-                          child: Text(course),
+                value: _selectedSchool,
+                items: _schools
+                    .map((school) => DropdownMenuItem(
+                          value: school,
+                          child: Row(
+                            children: [
+                              const Icon(Icons.school, color: Colors.blue), // Material icon
+                              const SizedBox(width: 8),
+                              Text(school),
+                            ],
+                          ),
                         ))
                     .toList(),
                 decoration: const InputDecoration(
-                  labelText: 'Select Course',
+                  labelText: 'Select School',
                   border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.school), // Material icon
                 ),
                 onChanged: (value) {
                   setState(() {
-                    _selectedCourse = value;
+                    _selectedSchool = value;
+                    _selectedCourses = [];
+                    _courses = [];
+                  });
+                  if (value != null) {
+                    _fetchCourses(value);
+                  }
+                },
+                validator: (value) =>
+                    value == null ? 'Please select a school' : null,
+              ),
+              const SizedBox(height: 12),
+              // Multi-select for courses
+              InputDecorator(
+                decoration: const InputDecoration(
+                  labelText: 'Select Course(s)',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.book, color: Colors.green),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (_courses.isEmpty)
+                      const Text('Select a school first'),
+                    if (_courses.isNotEmpty)
+                      Wrap(
+                        spacing: 8.0,
+                        children: _courses.map((course) {
+                          final selected = _selectedCourses.contains(course);
+                          return FilterChip(
+                            label: Text(course),
+                            selected: selected,
+                            onSelected: (bool value) {
+                              setState(() {
+                                if (value) {
+                                  _selectedCourses.add(course);
+                                } else {
+                                  _selectedCourses.remove(course);
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    if (_selectedCourses.isEmpty && _courses.isNotEmpty)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 8.0),
+                        child: Text(
+                          'Please select at least one course',
+                          style: TextStyle(color: Colors.red, fontSize: 12),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<int>(
+                value: _selectedYear,
+                items: _years
+                    .map((year) => DropdownMenuItem(
+                          value: year,
+                          child: Row(
+                            children: [
+                              const Icon(Icons.calendar_today, color: Colors.orange), // Material icon
+                              const SizedBox(width: 8),
+                              Text('Year $year'),
+                            ],
+                          ),
+                        ))
+                    .toList(),
+                decoration: const InputDecoration(
+                  labelText: 'Year of Study',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.calendar_today), // Material icon
+                ),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedYear = value;
+                    _selectedSemester = null;
                   });
                 },
                 validator: (value) =>
-                    value == null ? 'Please select a course' : null,
+                    value == null ? 'Please select year of study' : null,
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<int>(
+                value: _selectedSemester,
+                items: (_selectedYear != null
+                        ? _yearToSemesters[_selectedYear] ?? []
+                        : <int>[])
+                    .map<DropdownMenuItem<int>>((int sem) => DropdownMenuItem<int>(
+                          value: sem,
+                          child: Row(
+                            children: [
+                              const Icon(Icons.timelapse, color: Colors.purple), // Material icon
+                              const SizedBox(width: 8),
+                              Text('Semester $sem'),
+                            ],
+                          ),
+                        ))
+                    .toList(),
+                decoration: const InputDecoration(
+                  labelText: 'Semester',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.timelapse), // Material icon
+                ),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedSemester = value;
+                  });
+                },
+                validator: (value) =>
+                    value == null ? 'Please select semester' : null,
+                disabledHint: const Text('Select year first'),
+                isExpanded: true,
               ),
               const SizedBox(height: 24),
               ElevatedButton(

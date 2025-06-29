@@ -18,7 +18,7 @@ class AllocationFilterWidget extends StatefulWidget {
     required this.selectedTimeframe,
     required this.onFacultyChanged,
     required this.onBuildingChanged,
-    required this.onTimeframeChanged,
+    required this.onTimeframeChanged, required List<String> buildingList, required List<String> facultyList, required List<String> timeframeList,
   }) : super(key: key);
 
   @override
