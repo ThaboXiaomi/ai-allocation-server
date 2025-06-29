@@ -442,7 +442,10 @@ class _TimetableManagementPageState extends State<TimetableManagementPage>
                           icon: const Icon(Icons.group_add),
                           label: const Text('Assign Students'),
                           onPressed: () async {
+                            final school = data['school'];
                             final courseCode = data['courseCode'];
+                            final timetableDocId = doc.id;
+
                             if (courseCode == null || courseCode.isEmpty) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
@@ -451,28 +454,12 @@ class _TimetableManagementPageState extends State<TimetableManagementPage>
                               );
                               return;
                             }
-                            // Fetch students registered for this course
-                            final studentsSnapshot = await FirebaseFirestore
-                                .instance
-                                .collection('students')
-                                .where('school', isEqualTo: school)
-                                .where('registeredCourses',
-                                    arrayContains: courseCode)
-                                .get();
-                            final studentIds =
-                                studentsSnapshot.docs.map((d) => d.id).toList();
-                            print(studentIds);
-                            print(school);
-                            // Assign students to timetable
-                            await FirebaseFirestore.instance
-                                .collection('timetables')
-                                .doc(doc.id)
-                                .update({'students': studentIds});
 
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                  content: Text(
-                                      'Assigned ${studentIds.length} students to timetable.')),
+                            await assignStudents(
+                              school: school,
+                              courseCode: courseCode,
+                              timetableDocId: timetableDocId,
+                              context: context,
                             );
                           },
                         ),
@@ -596,5 +583,56 @@ class _TimetableManagementPageState extends State<TimetableManagementPage>
               'courseTitle': doc['courseTitle'],
             })
         .toList();
+  }
+
+  // --- Assign students to timetable ---
+  Future<void> assignStudents({
+    required String school,
+    required String courseCode,
+    required String timetableDocId,
+    required BuildContext context,
+  }) async {
+    // Show loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final studentsSnapshot = await FirebaseFirestore.instance
+          .collection('students')
+          .where('school', isEqualTo: school)
+          .where('registeredCourses', arrayContains: courseCode)
+          .get();
+
+      final studentIds = studentsSnapshot.docs.map((d) => d.id).toList();
+
+      if (studentIds.isEmpty) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('No students registered for this course.')),
+        );
+        return;
+      }
+
+      await FirebaseFirestore.instance
+          .collection('timetables')
+          .doc(timetableDocId)
+          .update({'students': studentIds});
+
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content:
+                Text('Successfully assigned ${studentIds.length} students.')),
+      );
+    } catch (e) {
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error assigning students: $e')),
+      );
+    }
   }
 }

@@ -10,6 +10,7 @@ import './widgets/quick_action_button_widget.dart';
 import './widgets/venue_map_widget.dart';
 import 'package:lecture_room_allocator/presentation/common/code_viewer_screen.dart';
 
+
 class StudentDashboardScreen extends StatefulWidget {
   const StudentDashboardScreen({Key? key}) : super(key: key);
 
@@ -133,7 +134,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
       setState(() => _isLoadingAttendanceData = false);
     }
   }
-
 
   @override
   void dispose() {
@@ -266,6 +266,18 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
         ));
   }
 
+  List<Map<String, dynamic>> get _todayLectures {
+    final today = DateTime.now();
+    return _lectureSchedule.where((lecture) {
+      if (lecture['date'] == null) return false;
+      final lectureDate = DateTime.tryParse(lecture['date']);
+      return lectureDate != null &&
+          lectureDate.year == today.year &&
+          lectureDate.month == today.month &&
+          lectureDate.day == today.day;
+    }).toList();
+  }
+
   Widget _buildTodayTab() {
     return _showMap
         ? _buildMapView()
@@ -274,31 +286,51 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (_lectureSchedule.isNotEmpty) _buildNextLectureCard(),
-                const SizedBox(height: 24),
-                if (_lectureSchedule.isNotEmpty)
-                  ..._lectureSchedule.map((lecture) => LectureCardWidget(
+                if (_todayLectures.isNotEmpty)
+                  ..._todayLectures.map((lecture) => LectureCardWidget(
                         lecture: {
                           ...lecture,
                           // Only use fallback if the value is null or empty string
-                          "courseCode": (lecture["courseCode"] != null && lecture["courseCode"].toString().trim().isNotEmpty)
+                          "courseCode": (lecture["courseCode"] != null &&
+                                  lecture["courseCode"]
+                                      .toString()
+                                      .trim()
+                                      .isNotEmpty)
                               ? lecture["courseCode"].toString()
                               : "",
-                          "courseTitle": (lecture["courseTitle"] != null && lecture["courseTitle"].toString().trim().isNotEmpty)
+                          "courseTitle": (lecture["courseTitle"] != null &&
+                                  lecture["courseTitle"]
+                                      .toString()
+                                      .trim()
+                                      .isNotEmpty)
                               ? lecture["courseTitle"].toString()
                               : "",
-                          "instructor": (lecture["instructor"] != null && lecture["instructor"].toString().trim().isNotEmpty)
+                          "instructor": (lecture["instructor"] != null &&
+                                  lecture["instructor"]
+                                      .toString()
+                                      .trim()
+                                      .isNotEmpty)
                               ? lecture["instructor"].toString()
                               : "",
-                          "startTime": (lecture["startTime"] != null && lecture["startTime"].toString().trim().isNotEmpty)
+                          "startTime": (lecture["startTime"] != null &&
+                                  lecture["startTime"]
+                                      .toString()
+                                      .trim()
+                                      .isNotEmpty)
                               ? lecture["startTime"].toString()
                               : "",
-                          "endTime": (lecture["endTime"] != null && lecture["endTime"].toString().trim().isNotEmpty)
+                          "endTime": (lecture["endTime"] != null &&
+                                  lecture["endTime"]
+                                      .toString()
+                                      .trim()
+                                      .isNotEmpty)
                               ? lecture["endTime"].toString()
                               : "",
                         },
                         onViewMap: () => setState(() => _showMap = true),
                       )),
+                if (_todayLectures.isEmpty)
+                  const Center(child: Text("No lectures scheduled for today.")),
                 const SizedBox(height: 24),
                 if (_attendanceData != null)
                   AttendanceStatsWidget(attendanceData: _attendanceData ?? {}),
@@ -327,19 +359,36 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
                 .map((lecture) => LectureCardWidget(
                       lecture: {
                         ...lecture,
-                        "courseCode": (lecture["courseCode"] != null && lecture["courseCode"].toString().trim().isNotEmpty)
+                        "courseCode": (lecture["courseCode"] != null &&
+                                lecture["courseCode"]
+                                    .toString()
+                                    .trim()
+                                    .isNotEmpty)
                             ? lecture["courseCode"].toString()
                             : "",
-                        "courseTitle": (lecture["courseTitle"] != null && lecture["courseTitle"].toString().trim().isNotEmpty)
+                        "courseTitle": (lecture["courseTitle"] != null &&
+                                lecture["courseTitle"]
+                                    .toString()
+                                    .trim()
+                                    .isNotEmpty)
                             ? lecture["courseTitle"].toString()
                             : "",
-                        "instructor": (lecture["instructor"] != null && lecture["instructor"].toString().trim().isNotEmpty)
+                        "instructor": (lecture["instructor"] != null &&
+                                lecture["instructor"]
+                                    .toString()
+                                    .trim()
+                                    .isNotEmpty)
                             ? lecture["instructor"].toString()
                             : "",
-                        "startTime": (lecture["startTime"] != null && lecture["startTime"].toString().trim().isNotEmpty)
+                        "startTime": (lecture["startTime"] != null &&
+                                lecture["startTime"]
+                                    .toString()
+                                    .trim()
+                                    .isNotEmpty)
                             ? lecture["startTime"].toString()
                             : "",
-                        "endTime": (lecture["endTime"] != null && lecture["endTime"].toString().trim().isNotEmpty)
+                        "endTime": (lecture["endTime"] != null &&
+                                lecture["endTime"].toString().trim().isNotEmpty)
                             ? lecture["endTime"].toString()
                             : "",
                       },
@@ -355,19 +404,24 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
     return LectureCardWidget(
       lecture: {
         ...nextLecture,
-        "courseCode": (nextLecture["courseCode"] != null && nextLecture["courseCode"].toString().trim().isNotEmpty)
+        "courseCode": (nextLecture["courseCode"] != null &&
+                nextLecture["courseCode"].toString().trim().isNotEmpty)
             ? nextLecture["courseCode"].toString()
             : "",
-        "courseTitle": (nextLecture["courseTitle"] != null && nextLecture["courseTitle"].toString().trim().isNotEmpty)
+        "courseTitle": (nextLecture["courseTitle"] != null &&
+                nextLecture["courseTitle"].toString().trim().isNotEmpty)
             ? nextLecture["courseTitle"].toString()
             : "",
-        "instructor": (nextLecture["instructor"] != null && nextLecture["instructor"].toString().trim().isNotEmpty)
+        "instructor": (nextLecture["instructor"] != null &&
+                nextLecture["instructor"].toString().trim().isNotEmpty)
             ? nextLecture["instructor"].toString()
             : "",
-        "startTime": (nextLecture["startTime"] != null && nextLecture["startTime"].toString().trim().isNotEmpty)
+        "startTime": (nextLecture["startTime"] != null &&
+                nextLecture["startTime"].toString().trim().isNotEmpty)
             ? nextLecture["startTime"].toString()
             : "",
-        "endTime": (nextLecture["endTime"] != null && nextLecture["endTime"].toString().trim().isNotEmpty)
+        "endTime": (nextLecture["endTime"] != null &&
+                nextLecture["endTime"].toString().trim().isNotEmpty)
             ? nextLecture["endTime"].toString()
             : "",
       },
@@ -382,7 +436,9 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
         QuickActionButtonWidget(
           icon: 'calendar_today',
           label: 'Full Schedule',
-          onTap: () => _selectedIndex = 1,
+          onTap: () => setState(() {
+            _selectedIndex = 1;
+          }),
         ),
         QuickActionButtonWidget(
           icon: 'email',
@@ -457,8 +513,17 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
                     separatorBuilder: (context, index) => const Divider(),
                     itemBuilder: (context, index) => NotificationCardWidget(
                       notification: _notifications[index],
-                      onTap: () {
+                      onTap: () async {
                         setState(() => _notifications[index]["isRead"] = true);
+                        // Mark as read in Firestore as well
+                        try {
+                          await FirebaseFirestore.instance
+                              .collection('notifications')
+                              .doc(_notifications[index]["id"])
+                              .update({"isRead": true});
+                        } catch (e) {
+                          // Optionally handle error
+                        }
                         Navigator.pop(context);
                       },
                     ),
@@ -471,7 +536,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
       },
     );
   }
-
 
   Widget _buildLatestNotificationSection() {
     if (_notifications.isEmpty) {
@@ -658,6 +722,16 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
                           ),
                         ),
                       );
+                    },
+                    textColor: textColor,
+                  ),
+                  // --- Settings Tab ---
+                  _buildMenuItem(
+                    icon: Icons.settings,
+                    label: 'Settings',
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.pushNamed(context, '/student-settings');
                     },
                     textColor: textColor,
                   ),
