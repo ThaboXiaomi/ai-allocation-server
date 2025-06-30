@@ -167,6 +167,13 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pop(context);
+            Navigator.pushNamed(context, '/admin-dashboard');
+          },
+        ),
         title: const Text('AI Allocation Dashboard'),
         actions: [
           Switch(
