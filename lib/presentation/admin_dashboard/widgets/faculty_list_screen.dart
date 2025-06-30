@@ -9,6 +9,14 @@ class FacultyListScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            // Navigate back to the previous screen
+            Navigator.pop(context);
+            Navigator.pushNamed(context, "/admin-dashboard");
+          },
+        ),
         title: const Text('Faculty List'),
         backgroundColor: Colors.indigo,
         actions: [

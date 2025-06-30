@@ -42,6 +42,14 @@ class _TimetableManagementPageState extends State<TimetableManagementPage>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+    icon: Icon(Icons.arrow_back),
+    onPressed: () {
+      Navigator.pop(context);
+      Navigator.pushNamed(context, "/admin-dashboard");
+                   
+    },
+  ),
         title: const Text('Timetable Management'),
         bottom: TabBar(
           controller: _tabController,

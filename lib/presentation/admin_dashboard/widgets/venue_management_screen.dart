@@ -43,7 +43,19 @@ class _RoomStatusWidgetState extends State<RoomStatusWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return Scaffold(
+      appBar: AppBar(
+      
+        leading: IconButton(
+    icon: Icon(Icons.arrow_back),
+    onPressed: () {
+      Navigator.pop(context);
+      Navigator.pushNamed(context, "/admin-dashboard");
+                   
+    },
+        ),
+        title: const Text("Room Status")),
+      body: Column(
       children: [
         // Add Room Form
         Padding(
@@ -121,6 +133,7 @@ class _RoomStatusWidgetState extends State<RoomStatusWidget> {
           ),
         ),
       ],
+    ),
     );
   }
 }
