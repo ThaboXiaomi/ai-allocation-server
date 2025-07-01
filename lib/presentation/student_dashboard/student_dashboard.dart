@@ -83,12 +83,35 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
           .collection('timetables')
           .where('students', arrayContains: user.uid)
           .get();
-      setState(() => _lectureSchedule = querySnapshot.docs
-          .map((doc) => {"id": doc.id, ...doc.data()})
-          .toList());
+
+      List<Map<String, dynamic>> lectures = [];
+
+      for (var doc in querySnapshot.docs) {
+        final data = doc.data();
+        Map<String, dynamic> lecture = {"id": doc.id, ...data};
+
+        // Fetch lecturer name from lecturers collection
+        if (data['lecturerId'] != null && data['lecturerId'].toString().isNotEmpty) {
+          final lecturerDoc = await FirebaseFirestore.instance
+              .collection('lecturers')
+              .doc(data['lecturerId'])
+              .get();
+          if (lecturerDoc.exists) {
+            final lecturerData = lecturerDoc.data();
+            lecture['instructor'] = lecturerData?['name'] ?? '';
+          } else {
+            lecture['instructor'] = '';
+          }
+        } else {
+          lecture['instructor'] = '';
+        }
+
+        lectures.add(lecture);
+      }
+
+      setState(() => _lectureSchedule = lectures);
     } catch (e) {
-      setState(
-          () => _lectureScheduleError = "Failed to load lecture schedule.");
+      setState(() => _lectureScheduleError = "Failed to load lecture schedule.");
     } finally {
       setState(() => _isLoadingLectureSchedule = false);
     }
