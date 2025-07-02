@@ -46,7 +46,8 @@ class _LecturerInterfaceState extends State<LecturerInterface>
   final List<Map<String, dynamic>> _quickActions = [
     {
       "id": "report_issue",
-      "icon": "help_outline", // Available in CustomIconWidget
+      "icon":
+          "report_problem", // Changed to a more appropriate icon for "Report Issue"
       "title": "Report Issue",
       "color": AppTheme.warning600,
     }
@@ -149,7 +150,8 @@ class _LecturerInterfaceState extends State<LecturerInterface>
         return MaterialApp(
             theme: isDark ? AppTheme.darkTheme : AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme, // Add this line for completeness
-            themeMode: isDark ? ThemeMode.dark : ThemeMode.light, // Add this line
+            themeMode:
+                isDark ? ThemeMode.dark : ThemeMode.light, // Add this line
             home: Scaffold(
               drawer: _buildSimpleDrawer(context),
               endDrawer: _buildSidebarMenu(context, isDark),
@@ -205,7 +207,8 @@ class _LecturerInterfaceState extends State<LecturerInterface>
                       isDark ? Icons.dark_mode : Icons.light_mode,
                       color: AppTheme.primary600,
                     ),
-                    tooltip: isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode',
+                    tooltip:
+                        isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode',
                     onPressed: () {
                       _isDarkMode.value = !isDark;
                     },
@@ -264,26 +267,25 @@ class _LecturerInterfaceState extends State<LecturerInterface>
   }
 
   Widget _buildScheduleView(List<Map<String, dynamic>> lectures) {
-    // Separate today's and upcoming lectures based on date
     final today = DateTime.now();
+
+    bool isSameDay(DateTime a, DateTime b) =>
+        a.year == b.year && a.month == b.month && a.day == b.day;
+
+    DateTime? parseLectureDate(dynamic dateField) {
+      if (dateField is Timestamp) return dateField.toDate();
+      if (dateField is String) return DateTime.tryParse(dateField);
+      return null;
+    }
+
     final todayLectures = lectures.where((lecture) {
-      final timestamp = lecture['dateTime'];
-      if (timestamp is Timestamp) {
-        final date = timestamp.toDate();
-        return date.year == today.year &&
-            date.month == today.month &&
-            date.day == today.day;
-      }
-      return false;
+      final date = parseLectureDate(lecture['date']);
+      return date != null && isSameDay(date, today);
     }).toList();
 
     final upcomingLectures = lectures.where((lecture) {
-      final timestamp = lecture['dateTime'];
-      if (timestamp is Timestamp) {
-        final date = timestamp.toDate();
-        return date.isAfter(today);
-      }
-      return false;
+      final date = parseLectureDate(lecture['date']);
+      return date != null && date.isAfter(today);
     }).toList();
 
     return Column(
@@ -328,8 +330,12 @@ class _LecturerInterfaceState extends State<LecturerInterface>
           child: TabBarView(
             controller: _tabController,
             children: [
-              _buildLecturesList(todayLectures),
-              _buildLecturesList(upcomingLectures),
+              _buildLecturesList(todayLectures,
+                  emptyText:
+                      "No lectures scheduled for today.\nAll schedules shown are assigned to you by the admin."),
+              _buildLecturesList(upcomingLectures,
+                  emptyText:
+                      "No upcoming lectures.\nAll schedules shown are assigned to you by the admin."),
             ],
           ),
         ),
@@ -343,75 +349,79 @@ class _LecturerInterfaceState extends State<LecturerInterface>
   Widget _buildNotificationSummary(List<Map<String, dynamic>> notifications) {
     int unreadCount = notifications.where((n) => !n["isRead"]).length;
     return InkWell(
-      onTap: () => _showNotificationsPanel(context),
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppTheme.primary50,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: AppTheme.primary100.withOpacity(0.12),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: AppTheme.primary100,
-                shape: BoxShape.circle,
+        onTap: () => _showNotificationsPanel(context),
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppTheme.primary50,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.primary100.withOpacity(0.12),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
               ),
-              child: const CustomIconWidget(
-                iconName: 'notifications_active',
-                color: AppTheme.primary600,
-                size: 24,
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Text(
-                'You have $unreadCount unread notification${unreadCount > 1 ? 's' : ''}',
-                style: AppTheme.lightTheme.textTheme.bodyLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.primary700,
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppTheme.primary100,
+                  shape: BoxShape.circle,
+                ),
+                child: const CustomIconWidget(
+                  iconName: 'notifications_active',
+                  color: AppTheme.primary600,
+                  size: 24,
                 ),
               ),
-            ),
-            const CustomIconWidget(
-              iconName: 'arrow_forward_ios',
-              color: AppTheme.primary600,
-              size: 18,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLecturesList(List<Map<String, dynamic>> lectures) {
-    return lectures.isEmpty
-        ? Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const CustomIconWidget(
-                  iconName: 'event_busy',
-                  color: AppTheme.neutral300,
-                  size: 72,
-                ),
-                const SizedBox(height: 18),
-                Text(
-                  'No lectures scheduled for today',
+              const SizedBox(width: 14),
+              Expanded(
+                child: Text(
+                  'You have $unreadCount unread notification${unreadCount > 1 ? 's' : ''}',
                   style: AppTheme.lightTheme.textTheme.bodyLarge?.copyWith(
-                    color: AppTheme.neutral500,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.primary700,
                   ),
                 ),
-              ],
+              ),
+              const CustomIconWidget(
+                iconName: 'arrow_forward_ios',
+                color: AppTheme.primary600,
+                size: 18,
+              ),
+            ],
+          ),
+        ));
+  }
+
+  Widget _buildLecturesList(List<Map<String, dynamic>> lectures,
+      {String? emptyText}) {
+    return lectures.isEmpty
+        ? Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const CustomIconWidget(
+                    iconName: 'event_busy',
+                    color: AppTheme.neutral300,
+                    size: 72,
+                  ),
+                  const SizedBox(height: 18),
+                  Text(
+                    emptyText ?? 'No lectures scheduled',
+                    textAlign: TextAlign.center,
+                    style: AppTheme.lightTheme.textTheme.bodyLarge?.copyWith(
+                      color: AppTheme.neutral500,
+                    ),
+                  ),
+                ],
+              ),
             ),
           )
         : ListView.separated(
@@ -420,66 +430,42 @@ class _LecturerInterfaceState extends State<LecturerInterface>
             separatorBuilder: (_, __) => const SizedBox(height: 16),
             itemBuilder: (context, index) {
               final lecture = lectures[index];
-              final studentIds = lecture['studentIds'] ?? [];
+              final date = (() {
+                final d = lecture['date'];
+                if (d is Timestamp) return d.toDate();
+                if (d is String) return DateTime.tryParse(d);
+                return null;
+              })();
+              final formattedDate = date != null
+                  ? "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}"
+                  : '';
               return Card(
                 elevation: 2,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: Column(
-                  children: [
-                    LectureCardWidget(
-                      lecture: lecture,
-                      onCheckIn: () => _handleCheckIn(index, lecture["id"]),
-                      onViewMap: lecture["hasVenueChange"]
-                          ? () {
-                              _showVenueMapBottomSheet(context, lecture);
-                            }
-                          : null,
-                    ),
-                    FutureBuilder<List<Map<String, dynamic>>>(
-                      future: _fetchStudents(studentIds),
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting) {
-                          return const Padding(
-                            padding: EdgeInsets.all(8.0),
-                            child: LinearProgressIndicator(),
-                          );
-                        }
-                        if (snapshot.hasError) {
-                          return const Padding(
-                            padding: EdgeInsets.all(8.0),
-                            child: Text('Error loading students'),
-                          );
-                        }
-                        final students = snapshot.data ?? [];
-                        if (students.isEmpty) {
-                          return const Padding(
-                            padding: EdgeInsets.all(8.0),
-                            child: Text('No students assigned'),
-                          );
-                        }
-                        return Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Assigned Students:',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              ...students.map((student) => Text(
-                                    student['name'] ?? 'Unnamed',
-                                    style: const TextStyle(fontSize: 14),
-                                  )),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ],
+                child: ListTile(
+                  leading:
+                      const Icon(Icons.class_, color: Colors.blue, size: 36),
+                  title: Text(
+                    "${lecture['courseCode'] ?? ''} - ${lecture['courseTitle'] ?? ''}",
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text("Date: $formattedDate"),
+                      Text(
+                          "Time: ${lecture['startTime'] ?? ''} - ${lecture['endTime'] ?? ''}"),
+                      Text("Room: ${lecture['room'] ?? ''}"),
+                    ],
+                  ),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.info_outline, color: Colors.grey),
+                    onPressed: () {
+                      // Optionally show more details or actions
+                    },
+                  ),
                 ),
               );
             },
@@ -710,7 +696,8 @@ class _LecturerInterfaceState extends State<LecturerInterface>
                   CircleAvatar(
                     radius: 28,
                     backgroundColor: AppTheme.primary300,
-                    child: const Icon(Icons.person, size: 32, color: Colors.white),
+                    child:
+                        const Icon(Icons.person, size: 32, color: Colors.white),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -719,7 +706,9 @@ class _LecturerInterfaceState extends State<LecturerInterface>
                       children: [
                         Text('Lecturer',
                             style: AppTheme.lightTheme.textTheme.titleLarge
-                                ?.copyWith(fontWeight: FontWeight.bold, color: textColor)),
+                                ?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: textColor)),
                         const SizedBox(height: 4),
                         Text('lecturer@university.edu',
                             style: AppTheme.lightTheme.textTheme.bodySmall
@@ -782,7 +771,8 @@ class _LecturerInterfaceState extends State<LecturerInterface>
                     secondary: Icon(
                         _isDarkMode.value ? Icons.dark_mode : Icons.light_mode,
                         color: textColor),
-                    title: Text('Dark Mode', style: TextStyle(color: textColor)),
+                    title:
+                        Text('Dark Mode', style: TextStyle(color: textColor)),
                     value: _isDarkMode.value,
                     onChanged: (val) => _isDarkMode.value = val,
                   ),
@@ -830,14 +820,15 @@ class _LecturerInterfaceState extends State<LecturerInterface>
     );
   }
 
-  Future<List<Map<String, dynamic>>> _fetchStudents(List<dynamic> studentIds) async {
-  if (studentIds.isEmpty) return [];
-  final snapshot = await FirebaseFirestore.instance
-      .collection('students')
-      .where(FieldPath.documentId, whereIn: studentIds)
-      .get();
-  return snapshot.docs.map((doc) => doc.data()).toList();
-}
+  Future<List<Map<String, dynamic>>> _fetchStudents(
+      List<dynamic> studentIds) async {
+    if (studentIds.isEmpty) return [];
+    final snapshot = await FirebaseFirestore.instance
+        .collection('students')
+        .where(FieldPath.documentId, whereIn: studentIds)
+        .get();
+    return snapshot.docs.map((doc) => doc.data()).toList();
+  }
 
   Widget _buildSimpleDrawer(BuildContext context) {
     return Drawer(
@@ -846,7 +837,8 @@ class _LecturerInterfaceState extends State<LecturerInterface>
         children: <Widget>[
           DrawerHeader(
             decoration: BoxDecoration(color: Colors.blue),
-            child: Text('Lecturer Menu', style: TextStyle(color: Colors.white, fontSize: 24)),
+            child: Text('Lecturer Menu',
+                style: TextStyle(color: Colors.white, fontSize: 24)),
           ),
           ListTile(
             leading: Icon(Icons.check_circle_outline),
@@ -856,7 +848,8 @@ class _LecturerInterfaceState extends State<LecturerInterface>
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => AttendanceStatsWidget(courseId: 'sampleCourseId'),
+                  builder: (context) =>
+                      AttendanceStatsWidget(courseId: 'sampleCourseId'),
                 ),
               );
             },
@@ -869,7 +862,8 @@ class _LecturerInterfaceState extends State<LecturerInterface>
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => ClassTimerWidget(classId: 'sampleClassId'),
+                  builder: (context) =>
+                      ClassTimerWidget(classId: 'sampleClassId'),
                 ),
               );
             },
