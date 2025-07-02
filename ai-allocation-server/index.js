@@ -41,9 +41,21 @@ app.post("/resolve-conflict", async (req, res) => {
     });
     const suggestion = response.choices[0].message.content;
 
+    // Update the allocation document
     await db.collection("allocations").doc(allocationId).update({
       resolvedVenue: suggestion,
       conflict: false,
+    });
+
+    // Log the decision in decisionLogs
+    await db.collection("decisionLogs").add({
+      allocationId,
+      description: `Conflict resolved for allocation ${allocationId}. Suggested venue: ${suggestion}`,
+      conflictDetails,
+      suggestedVenue: suggestion,
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      resolvedBy: "AI",
+      status: "resolved"
     });
 
     res.json({ resolvedVenue: suggestion });
