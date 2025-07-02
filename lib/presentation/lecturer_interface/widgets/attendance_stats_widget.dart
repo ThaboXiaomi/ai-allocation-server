@@ -51,7 +51,15 @@ class _AttendanceStatsWidgetState extends State<AttendanceStatsWidget> {
             List<Map<String, dynamic>>.from(data['attendanceData']);
         final totalStudents = data['totalStudents'] ?? 0;
 
-        return _buildElegantAttendanceCard(attendanceData, totalStudents);
+        return Column(
+          children: [
+            _buildElegantAttendanceCard(attendanceData, totalStudents),
+            const SizedBox(height: 24),
+            Expanded(
+              child: _buildCheckedInStudentsList(widget.courseId),
+            ),
+          ],
+        );
       },
     );
   }
@@ -359,5 +367,49 @@ class _AttendanceStatsWidgetState extends State<AttendanceStatsWidget> {
     } else {
       return AppTheme.error600;
     }
+  }
+
+  Widget _buildCheckedInStudentsList(String courseId) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('student_check_ins')
+          .where('courseId', isEqualTo: courseId)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return const Center(child: Text('Error loading checked-in students.'));
+        }
+        final docs = snapshot.data?.docs ?? [];
+        if (docs.isEmpty) {
+          return const Center(child: Text('No students have checked in yet.'));
+        }
+        return ListView.separated(
+          itemCount: docs.length,
+          separatorBuilder: (_, __) => const Divider(height: 1),
+          itemBuilder: (context, index) {
+            final student = docs[index].data() as Map<String, dynamic>;
+            return ListTile(
+              leading: const Icon(Icons.person, color: Colors.blue),
+              title: Text(student['studentName'] ?? 'Unknown Student'),
+              subtitle: Text('ID: ${student['studentId'] ?? ''}'),
+              trailing: Text(
+                student['checkInTime'] != null
+                    ? (student['checkInTime'] is Timestamp
+                        ? (student['checkInTime'] as Timestamp)
+                            .toDate()
+                            .toLocal()
+                            .toString()
+                        : student['checkInTime'].toString())
+                    : '',
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 }
