@@ -17,6 +17,10 @@ import 'package:lecture_room_allocator/presentation/admin_dashboard/widgets/facu
 import 'package:lecture_room_allocator/presentation/admin_dashboard/widgets/faculty_item_widget.dart'
     as fiw;
 import 'package:lecture_room_allocator/presentation/student_dashboard/widgets/student_settings.dart';
+import 'package:lecture_room_allocator/presentation/lecturer_interface/widgets/attendance_stats_widget.dart';
+import 'package:lecture_room_allocator/presentation/lecturer_interface/widgets/class_timer_widget.dart';
+import 'package:lecture_room_allocator/presentation/lecturer_interface/widgets/notification_card_widget.dart';
+import 'package:lecture_room_allocator/presentation/lecturer_interface/widgets/venue_map_widget.dart';
 
 class AppRoutes {
   static const String portalSelection = '/portal-selection';
@@ -37,6 +41,12 @@ class AppRoutes {
   static const String facultyList = '/faculty-list';
   static const String studentSettings = '/student-settings';
 
+  // Add these route constants:
+  static const String lecturerAttendance = '/lecturer-attendance';
+  static const String lecturerClassTimer = '/lecturer-class-timer';
+  static const String lecturerNotifications = '/lecturer-notifications';
+  static const String lecturerVenueMap = '/lecturer-venue-map';
+
   static final Map<String, WidgetBuilder> routes = {
     portalSelection: (_) => const PortalSelectionScreen(),
     studentAuth: (_) => const StudentAuthScreen(),
@@ -51,6 +61,19 @@ class AppRoutes {
     venueManagement: (_) => const VenueManagementScreen(),
     facultyList: (_) => fls.FacultyListScreen(),
     studentSettings: (_) => const StudentSettings(),
+    // Add these to the routes map:
+    lecturerAttendance: (_) =>
+        AttendanceStatsWidget(courseId: 'sampleCourseId'),
+    lecturerClassTimer: (_) => ClassTimerWidget(classId: 'sampleClassId'),
+    lecturerNotifications: (_) => NotificationCardWidget(
+          notification: const {
+            "id": "notif1",
+            "isRead": false,
+            "type": "system",
+          },
+          onTap: () {},
+        ),
+    lecturerVenueMap: (_) => VenueMapWidget(fromVenue: 'A101', toVenue: 'B202'),
   };
 
   /// Dynamically determine the initial screen based on auth state
@@ -91,5 +114,52 @@ class AppRoutes {
         }
       },
     );
+  }
+
+  static Route<dynamic>? onGenerateRoute(RouteSettings settings) {
+    switch (settings.name) {
+      case lecturerAttendance:
+        final args = settings.arguments as Map<String, dynamic>? ?? {};
+        return MaterialPageRoute(
+          builder: (_) => AttendanceStatsWidget(
+            courseId: args['courseId'] ?? 'sampleCourseId',
+          ),
+        );
+      case lecturerClassTimer:
+        final args = settings.arguments as Map<String, dynamic>? ?? {};
+        return MaterialPageRoute(
+          builder: (_) => ClassTimerWidget(
+            classId: args['classId'] ?? 'sampleClassId',
+          ),
+        );
+      case lecturerNotifications:
+        final args = settings.arguments as Map<String, dynamic>? ?? {};
+        return MaterialPageRoute(
+          builder: (_) => NotificationCardWidget(
+            notification: args['notification'] ??
+                const {
+                  "id": "notif1",
+                  "isRead": false,
+                  "type": "system",
+                },
+            onTap: args['onTap'] ?? () {},
+          ),
+        );
+      case lecturerVenueMap:
+        final args = settings.arguments as Map<String, dynamic>? ?? {};
+        return MaterialPageRoute(
+          builder: (_) => VenueMapWidget(
+            fromVenue: args['fromVenue'] ?? 'A101',
+            toVenue: args['toVenue'] ?? 'B202',
+          ),
+        );
+      default:
+        // Fallback to static routes or unknown route
+        final builder = routes[settings.name];
+        if (builder != null) {
+          return MaterialPageRoute(builder: builder);
+        }
+        return null;
+    }
   }
 }

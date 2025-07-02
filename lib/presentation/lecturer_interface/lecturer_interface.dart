@@ -158,44 +158,60 @@ class _LecturerInterfaceState extends State<LecturerInterface>
               appBar: AppBar(
                 elevation: 0,
                 backgroundColor: Colors.transparent,
-                title: Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 22,
-                      backgroundColor: AppTheme.primary100,
-                      child: const CustomIconWidget(
-                        iconName: 'account_circle',
-                        color: AppTheme.primary600,
-                        size: 32,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                title: FutureBuilder<DocumentSnapshot>(
+                  future: FirebaseFirestore.instance
+                      .collection('lecturers')
+                      .doc(FirebaseAuth.instance.currentUser?.uid)
+                      .get(),
+                  builder: (context, snapshot) {
+                    final lecturer =
+                        snapshot.data?.data() as Map<String, dynamic>?;
+
+                    return Row(
                       children: [
-                        Text(
-                          'Welcome, Lecturer',
-                          style:
-                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                        CircleAvatar(
+                          radius: 26,
+                          backgroundColor: AppTheme.primary100,
+                          child: const CustomIconWidget(
+                            iconName: 'account_circle',
+                            color: AppTheme.primary600,
+                            size: 32,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Welcome, Lecturer',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(
                                     color: AppTheme.primary900,
                                     fontWeight: FontWeight.bold,
                                   ),
-                        ),
-                        Text(
-                          'Have a productive day!',
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                            ),
+                            Text(
+                              'Have a productive day!',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
                                     color: AppTheme.neutral600,
                                   ),
+                            ),
+                          ],
                         ),
                       ],
-                    ),
-                  ],
+                    );
+                  },
                 ),
                 actions: [
                   IconButton(
-                    icon: const CustomIconWidget(
-                      iconName: 'notifications',
+                    icon: const Icon(
+                      Icons
+                          .notifications_active, // Use a nice Material icon for notifications
                       color: AppTheme.primary600,
                     ),
                     onPressed: () => _showNotificationsPanel(context),
@@ -214,6 +230,15 @@ class _LecturerInterfaceState extends State<LecturerInterface>
                     },
                   ),
                 ],
+                flexibleSpace: Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFF1976D2), Color(0xFF42A5F5)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                ),
               ),
               body: SafeArea(
                 child: Container(
@@ -745,13 +770,87 @@ class _LecturerInterfaceState extends State<LecturerInterface>
                     textColor: textColor,
                   ),
                   _buildMenuItem(
+                    icon: Icons.check_circle_outline,
+                    label: 'Attendance',
+                    onTap: () async {
+                      Navigator.pop(context);
+                      // Show a dialog with the lecturer's courses
+                      final lecturerId = FirebaseAuth.instance.currentUser?.uid;
+                      if (lecturerId == null) return;
+
+                      showDialog(
+                        context: context,
+                        builder: (context) {
+                          return AlertDialog(
+                            title: const Text('Select Course'),
+                            content: SizedBox(
+                              width: double.maxFinite,
+                              child: StreamBuilder<QuerySnapshot>(
+                                stream: FirebaseFirestore.instance
+                                    .collection('courses')
+                                    .where('lecturerId', isEqualTo: lecturerId)
+                                    .snapshots(),
+                                builder: (context, snapshot) {
+                                  if (snapshot.connectionState ==
+                                      ConnectionState.waiting) {
+                                    return const Center(
+                                        child: CircularProgressIndicator());
+                                  }
+                                  if (!snapshot.hasData ||
+                                      snapshot.data!.docs.isEmpty) {
+                                    return const Text('No courses found.');
+                                  }
+                                  final courses = snapshot.data!.docs;
+                                  return ListView.builder(
+                                    shrinkWrap: true,
+                                    itemCount: courses.length,
+                                    itemBuilder: (context, index) {
+                                      final course = courses[index].data()
+                                          as Map<String, dynamic>;
+                                      final courseId = courses[index].id;
+                                      final courseTitle =
+                                          course['courseTitle'] ?? '';
+                                      final courseCode =
+                                          course['courseCode'] ?? '';
+                                      return ListTile(
+                                        title:
+                                            Text('$courseCode - $courseTitle'),
+                                        onTap: () {
+                                          Navigator.pop(
+                                              context); // Close dialog
+                                          Navigator.pushNamed(
+                                            context,
+                                            '/lecturer-attendance',
+                                            arguments: {'courseId': courseId},
+                                          );
+                                        },
+                                      );
+                                    },
+                                  );
+                                },
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                    textColor: textColor,
+                  ),
+                  _buildMenuItem(
+                    icon: Icons.timer,
+                    label: 'Class Timer',
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.pushNamed(context, '/lecturer-class-timer');
+                    },
+                    textColor: textColor,
+                  ),
+                  _buildMenuItem(
                     icon: Icons.notifications,
                     label: 'Notifications',
                     onTap: () {
-                      if (Navigator.of(context).canPop()) {
-                        Navigator.pop(context);
-                      }
-                      _showNotificationsPanel(context);
+                      Navigator.pop(context);
+                      Navigator.pushNamed(context, '/lecturer-notifications');
                     },
                     textColor: textColor,
                   ),
@@ -759,10 +858,20 @@ class _LecturerInterfaceState extends State<LecturerInterface>
                     icon: Icons.map,
                     label: 'Venue Map',
                     onTap: () {
-                      if (Navigator.of(context).canPop()) {
-                        Navigator.pop(context);
-                      }
-                      setState(() => _showMap = true);
+                      Navigator.pop(context);
+                      Navigator.pushNamed(context, '/lecturer-venue-map');
+                    },
+                    textColor: textColor,
+                  ),
+                  _buildMenuItem(
+                    icon: Icons.report_problem,
+                    label: 'Report Issue',
+                    onTap: () {
+                      Navigator.pop(context);
+                      // You can show a dialog or navigate to a report issue screen here
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Report Issue tapped')),
+                      );
                     },
                     textColor: textColor,
                   ),
@@ -859,8 +968,8 @@ class _LecturerInterfaceState extends State<LecturerInterface>
                               CircleAvatar(
                                 radius: 28,
                                 backgroundColor: Colors.white,
-                                child:
-                                    Icon(Icons.person, size: 32, color: Colors.blue),
+                                child: Icon(Icons.person,
+                                    size: 32, color: Colors.blue),
                               ),
                               const SizedBox(width: 16),
                               Expanded(
@@ -891,22 +1000,26 @@ class _LecturerInterfaceState extends State<LecturerInterface>
                           const SizedBox(height: 12),
                           Row(
                             children: [
-                              Icon(Icons.school, color: Colors.white70, size: 18),
+                              Icon(Icons.school,
+                                  color: Colors.white70, size: 18),
                               const SizedBox(width: 6),
                               Text(
                                 lecturer['school'] ?? '',
-                                style: const TextStyle(color: Colors.white70, fontSize: 14),
+                                style: const TextStyle(
+                                    color: Colors.white70, fontSize: 14),
                               ),
                             ],
                           ),
                           const SizedBox(height: 4),
                           Row(
                             children: [
-                              Icon(Icons.badge, color: Colors.white70, size: 18),
+                              Icon(Icons.badge,
+                                  color: Colors.white70, size: 18),
                               const SizedBox(width: 6),
                               Text(
                                 'Staff ID: ${lecturer['staffId'] ?? ''}',
-                                style: const TextStyle(color: Colors.white70, fontSize: 14),
+                                style: const TextStyle(
+                                    color: Colors.white70, fontSize: 14),
                               ),
                             ],
                           ),
@@ -918,13 +1031,7 @@ class _LecturerInterfaceState extends State<LecturerInterface>
                 title: Text('Attendance'),
                 onTap: () {
                   Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          AttendanceStatsWidget(courseId: 'sampleCourseId'),
-                    ),
-                  );
+                  Navigator.pushNamed(context, '/lecturer-attendance');
                 },
               ),
               ListTile(
@@ -932,13 +1039,7 @@ class _LecturerInterfaceState extends State<LecturerInterface>
                 title: Text('Class Timer'),
                 onTap: () {
                   Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          ClassTimerWidget(classId: 'sampleClassId'),
-                    ),
-                  );
+                  Navigator.pushNamed(context, '/lecturer-class-timer');
                 },
               ),
               ListTile(
@@ -946,19 +1047,7 @@ class _LecturerInterfaceState extends State<LecturerInterface>
                 title: Text('Notifications'),
                 onTap: () {
                   Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => NotificationCardWidget(
-                        notification: const {
-                          "id": "notif1",
-                          "isRead": false,
-                          "type": "system",
-                        },
-                        onTap: () {},
-                      ),
-                    ),
-                  );
+                  Navigator.pushNamed(context, '/lecturer-notifications');
                 },
               ),
               ListTile(
@@ -966,15 +1055,7 @@ class _LecturerInterfaceState extends State<LecturerInterface>
                 title: Text('Venue Map'),
                 onTap: () {
                   Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => VenueMapWidget(
-                        fromVenue: 'A101',
-                        toVenue: 'B202',
-                      ),
-                    ),
-                  );
+                  Navigator.pushNamed(context, '/lecturer-venue-map');
                 },
               ),
               const Divider(),

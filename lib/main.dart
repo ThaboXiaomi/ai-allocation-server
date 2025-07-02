@@ -87,6 +87,7 @@ class MyApp extends StatelessWidget {
           navigatorKey: NavigatorService.navigatorKey,
           debugShowCheckedModeBanner: false,
           routes: AppRoutes.routes, // <-- Use all routes from AppRoutes
+          onGenerateRoute: AppRoutes.onGenerateRoute,
           home: AppRoutes.getInitialScreen(),
         );
       },
