@@ -832,89 +832,164 @@ class _LecturerInterfaceState extends State<LecturerInterface>
 
   Widget _buildSimpleDrawer(BuildContext context) {
     return Drawer(
-      child: ListView(
-        padding: EdgeInsets.zero,
-        children: <Widget>[
-          DrawerHeader(
-            decoration: BoxDecoration(color: Colors.blue),
-            child: Text('Lecturer Menu',
-                style: TextStyle(color: Colors.white, fontSize: 24)),
-          ),
-          ListTile(
-            leading: Icon(Icons.check_circle_outline),
-            title: Text('Attendance'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      AttendanceStatsWidget(courseId: 'sampleCourseId'),
-                ),
-              );
-            },
-          ),
-          ListTile(
-            leading: Icon(Icons.timer),
-            title: Text('Class Timer'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      ClassTimerWidget(classId: 'sampleClassId'),
-                ),
-              );
-            },
-          ),
-          ListTile(
-            leading: Icon(Icons.notifications),
-            title: Text('Notifications'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => NotificationCardWidget(
-                    notification: const {
-                      "id": "notif1",
-                      "isRead": false,
-                      "type": "system",
-                    },
-                    onTap: () {},
-                  ),
-                ),
-              );
-            },
-          ),
-          ListTile(
-            leading: Icon(Icons.map),
-            title: Text('Venue Map'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => VenueMapWidget(
-                    fromVenue: 'A101',
-                    toVenue: 'B202',
-                  ),
-                ),
-              );
-            },
-          ),
-          Divider(),
-          ListTile(
-            leading: Icon(Icons.logout),
-            title: Text('Logout'),
-            onTap: () async {
-              Navigator.of(context).pop();
-              await FirebaseAuth.instance.signOut();
-              Navigator.pushReplacementNamed(context, '/lecturer-login');
-            },
-          ),
-        ],
+      child: FutureBuilder<DocumentSnapshot>(
+        future: FirebaseFirestore.instance
+            .collection('lecturers')
+            .doc(FirebaseAuth.instance.currentUser?.uid)
+            .get(),
+        builder: (context, snapshot) {
+          final lecturer = snapshot.data?.data() as Map<String, dynamic>?;
+
+          return ListView(
+            padding: EdgeInsets.zero,
+            children: <Widget>[
+              DrawerHeader(
+                decoration: BoxDecoration(color: Colors.blue),
+                child: lecturer == null
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                        ),
+                      )
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 28,
+                                backgroundColor: Colors.white,
+                                child:
+                                    Icon(Icons.person, size: 32, color: Colors.blue),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      lecturer['name'] ?? 'Lecturer',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      lecturer['email'] ?? '',
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Icon(Icons.school, color: Colors.white70, size: 18),
+                              const SizedBox(width: 6),
+                              Text(
+                                lecturer['school'] ?? '',
+                                style: const TextStyle(color: Colors.white70, fontSize: 14),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Icon(Icons.badge, color: Colors.white70, size: 18),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Staff ID: ${lecturer['staffId'] ?? ''}',
+                                style: const TextStyle(color: Colors.white70, fontSize: 14),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+              ),
+              ListTile(
+                leading: Icon(Icons.check_circle_outline),
+                title: Text('Attendance'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          AttendanceStatsWidget(courseId: 'sampleCourseId'),
+                    ),
+                  );
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.timer),
+                title: Text('Class Timer'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          ClassTimerWidget(classId: 'sampleClassId'),
+                    ),
+                  );
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.notifications),
+                title: Text('Notifications'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => NotificationCardWidget(
+                        notification: const {
+                          "id": "notif1",
+                          "isRead": false,
+                          "type": "system",
+                        },
+                        onTap: () {},
+                      ),
+                    ),
+                  );
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.map),
+                title: Text('Venue Map'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => VenueMapWidget(
+                        fromVenue: 'A101',
+                        toVenue: 'B202',
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const Divider(),
+              ListTile(
+                leading: Icon(Icons.logout),
+                title: Text('Logout'),
+                onTap: () async {
+                  Navigator.of(context).pop();
+                  await FirebaseAuth.instance.signOut();
+                  Navigator.pushReplacementNamed(context, '/lecturer-login');
+                },
+              ),
+            ],
+          );
+        },
       ),
     );
   }
