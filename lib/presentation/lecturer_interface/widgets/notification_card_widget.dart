@@ -191,3 +191,36 @@ class NotificationCardWidget extends StatelessWidget {
     );
   }
 }
+
+// Example widget to display lecturer notifications from Firestore
+class LecturerNotificationsList extends StatelessWidget {
+  final String currentLecturerId;
+  const LecturerNotificationsList({Key? key, required this.currentLecturerId}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('notifications')
+          .where('lecturerId', isEqualTo: currentLecturerId)
+          .orderBy('time', descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const CircularProgressIndicator();
+        final notifications = snapshot.data!.docs.map((doc) => {
+          ...doc.data() as Map<String, dynamic>,
+          'id': doc.id,
+        }).toList();
+        return ListView.builder(
+          itemCount: notifications.length,
+          itemBuilder: (context, index) => NotificationCardWidget(
+            notification: notifications[index],
+            onTap: () {
+              // Show details or mark as read
+            },
+          ),
+        );
+      },
+    );
+  }
+}

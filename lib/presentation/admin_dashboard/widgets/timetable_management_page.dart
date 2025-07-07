@@ -43,13 +43,12 @@ class _TimetableManagementPageState extends State<TimetableManagementPage>
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-    icon: Icon(Icons.arrow_back),
-    onPressed: () {
-      Navigator.pop(context);
-      Navigator.pushNamed(context, "/admin-dashboard");
-                   
-    },
-  ),
+          icon: Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pop(context);
+            Navigator.pushNamed(context, "/admin-dashboard");
+          },
+        ),
         title: const Text('Timetable Management'),
         bottom: TabBar(
           controller: _tabController,
@@ -186,8 +185,8 @@ class _TimetableManagementPageState extends State<TimetableManagementPage>
                     },
                   ),
                   // Room selection dropdown
-                  FutureBuilder<List<String>>(
-                    future: _fetchAvailableRooms(),
+                  FutureBuilder<List<Map<String, dynamic>>>(
+                    future: _fetchAvailableRooms(), // Changed from Future<List<String>> to Future<List<Map<String, dynamic>>>
                     builder: (context, snapshot) {
                       if (!snapshot.hasData) {
                         return const CircularProgressIndicator();
@@ -201,8 +200,8 @@ class _TimetableManagementPageState extends State<TimetableManagementPage>
                         value: _room,
                         items: rooms
                             .map((room) => DropdownMenuItem(
-                                  value: room,
-                                  child: Text(room),
+                                  value: room['id'] as String,
+                                  child: Text(room['name']),
                                 ))
                             .toList(),
                         onChanged: (val) {
@@ -289,11 +288,12 @@ class _TimetableManagementPageState extends State<TimetableManagementPage>
                               return;
                             }
                             if ((_courseCode == null || _courseCode!.isEmpty) ||
-                                (_courseTitle == null || _courseTitle!.isEmpty)) {
+                                (_courseTitle == null ||
+                                    _courseTitle!.isEmpty)) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                    content: Text(
-                                        'Please select a valid course.')),
+                                    content:
+                                        Text('Please select a valid course.')),
                               );
                               return;
                             }
@@ -322,10 +322,45 @@ class _TimetableManagementPageState extends State<TimetableManagementPage>
                                     content: Text('Timetable updated!')),
                               );
                             } else {
-                              // Add new
-                              context
-                                  .read<TimetableManagementBloc>()
-                                  .add(AddTimetable(timetableData));
+                              // Add new and get the allocationId (document ID)
+                              final docRef = await FirebaseFirestore.instance
+                                  .collection('timetables')
+                                  .add(timetableData);
+                              final allocationId = docRef.id;
+                              // Optionally, you can update the document to include its own ID
+                              await docRef
+                                  .update({'allocationId': allocationId});
+
+                              // --- Before sending notification, fetch the room name ---
+                              String roomName = '';
+                              if (_room != null && _room!.isNotEmpty) {
+                                final roomDoc = await FirebaseFirestore.instance
+                                    .collection('lecture_rooms')
+                                    .doc(_room)
+                                    .get();
+                                roomName = roomDoc.exists
+                                    ? (roomDoc['name'] ?? 'Room')
+                                    : 'Room';
+                              }
+
+                              // Send notification to lecturer
+                              await FirebaseFirestore.instance
+                                  .collection('notifications')
+                                  .add({
+                                'type': 'timetable_created',
+                                'title': 'New Timetable Assigned',
+                                'message':
+                                    'You have been assigned a new lecture: ${_courseCode ?? ''} - ${_courseTitle ?? ''} in room $roomName on ${_date != null ? _date!.toLocal().toString().split(' ')[0] : ''} at ${_startTime != null ? _startTime!.format(context) : ''}.',
+                                'lecturerId': _lecturerId ?? '',
+                                'timetableId': allocationId,
+                                'isRead': false,
+                                'time': DateTime.now().toIso8601String(),
+                              });
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text(
+                                        'Timetable added and lecturer notified!')),
+                              );
                             }
                             _formKey.currentState?.reset();
                             setState(() {
@@ -372,12 +407,24 @@ class _TimetableManagementPageState extends State<TimetableManagementPage>
                       child: ListTile(
                         title: Text(
                             '${data['courseCode'] ?? ''} - ${data['courseTitle'] ?? ''}'),
-                        subtitle: Text(
-                          'School: ${data['school'] ?? ''}\n'
-                          'Lecturer: ${data['lecturerId'] ?? ''}\n'
-                          'Room: ${data['room'] ?? ''}\n'
-                          'Date: ${data['date']?.toString().split("T")[0] ?? ''}\n'
-                          'Start: ${data['startTime'] ?? ''} - End: ${data['endTime'] ?? ''}',
+                        subtitle: FutureBuilder<DocumentSnapshot>(
+                          future: FirebaseFirestore.instance
+                              .collection('lecture_rooms')
+                              .doc(data['room'])
+                              .get(),
+                          builder: (context, roomSnapshot) {
+                            String roomName = '';
+                            if (roomSnapshot.hasData && roomSnapshot.data!.exists) {
+                              roomName = roomSnapshot.data!['name'] ?? '';
+                            }
+                            return Text(
+                              'School: ${data['school'] ?? ''}\n'
+                              'Lecturer: ${data['lecturerId'] ?? ''}\n'
+                              'Room: $roomName\n'
+                              'Date: ${data['date']?.toString().split("T")[0] ?? ''}\n'
+                              'Start: ${data['startTime'] ?? ''} - End: ${data['endTime'] ?? ''}',
+                            );
+                          },
                         ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -512,12 +559,17 @@ class _TimetableManagementPageState extends State<TimetableManagementPage>
     return TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
   }
 
-  Future<List<String>> _fetchAvailableRooms() async {
+  Future<List<Map<String, dynamic>>> _fetchAvailableRooms() async {
     final snapshot = await FirebaseFirestore.instance
         .collection('lecture_rooms')
         .where('status', isEqualTo: 'Available')
         .get();
-    return snapshot.docs.map((doc) => doc['name'] as String).toList();
+    return snapshot.docs
+        .map((doc) => {
+              'id': doc.id, // Changed from String to Map<String, dynamic>
+              'name': doc['name'] as String,
+            })
+        .toList();
   }
 
   Future<List<Map<String, dynamic>>> _fetchLecturers(String? school) async {
@@ -632,7 +684,8 @@ class _TimetableManagementPageState extends State<TimetableManagementPage>
 
     if (students.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No students registered for this course.')),
+        const SnackBar(
+            content: Text('No students registered for this course.')),
       );
       return;
     }

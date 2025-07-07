@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 import '../../../theme/app_theme.dart';
 import '../../../widgets/custom_icon_widget.dart';
@@ -54,31 +56,89 @@ class _LectureCardWidgetState extends State<LectureCardWidget> {
     final timetableId = widget.lecture["id"];
     final today = DateTime.now().toIso8601String().substring(0, 10);
 
-    // Check if already clocked in
-    final existing = await FirebaseFirestore.instance
+    // Fetch this timetable
+    final timetableSnap = await FirebaseFirestore.instance
+        .collection('timetables')
+        .doc(timetableId)
+        .get();
+    final timetable = timetableSnap.data();
+    if (timetable == null) return;
+
+    final room = timetable['room'];
+    final date = timetable['date'];
+    final startTime = timetable['startTime'];
+    final endTime = timetable['endTime'];
+    final school = timetable['school'];
+
+    // Find other timetables with same room, date, and overlapping time
+    final conflictQuery = await FirebaseFirestore.instance
+        .collection('timetables')
+        .where('room', isEqualTo: room)
+        .where('date', isEqualTo: date)
+        .get();
+
+    List<Map<String, dynamic>> conflicts = [];
+    for (var doc in conflictQuery.docs) {
+      if (doc.id == timetableId) continue;
+      final other = doc.data();
+      // Check for time overlap
+      if (!(endTime.compareTo(other['startTime']) <= 0 ||
+          startTime.compareTo(other['endTime']) >= 0)) {
+        // Only consider other schools
+        if (other['school'] != school) {
+          conflicts.add({...other, 'id': doc.id});
+        }
+      }
+    }
+
+    // Check if any student has checked in for this room/time
+    final checkIns = await FirebaseFirestore.instance
         .collection('student_check_ins')
-        .where('studentId', isEqualTo: user.uid)
-        .where('timetableId', isEqualTo: timetableId)
+        .where('timetableId',
+            whereIn: [timetableId, ...conflicts.map((c) => c['id'])])
         .where('date', isEqualTo: today)
         .get();
 
-    if (existing.docs.isNotEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Already clocked in for this lecture.')),
+    if (checkIns.docs.isEmpty) {
+      // First check-in: allow and mark as in-progress
+      await FirebaseFirestore.instance.collection('student_check_ins').add({
+        'studentId': user.uid,
+        'timetableId': timetableId,
+        'timestamp': FieldValue.serverTimestamp(),
+        'date': today,
+      });
+      await FirebaseFirestore.instance
+          .collection('timetables')
+          .doc(timetableId)
+          .update({'status': 'in-progress'});
+      // Optionally send notification: "Check-in successful"
+    } else {
+      // Another class already checked in: trigger AI for this timetable
+      final response = await http.post(
+        Uri.parse('http://localhost:3000/resolve-conflict'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'allocationId': timetableId,
+          'conflictDetails':
+              'Room $room is occupied at $startTime-$endTime on $date. Please suggest an alternative venue.',
+          'date': date,
+          'startTime': startTime,
+          'endTime': endTime,
+        }),
       );
-      setState(() => _loading = false);
-      return;
+      if (response.statusCode == 200) {
+        final suggestedVenue = jsonDecode(response.body)['resolvedVenue'];
+        await FirebaseFirestore.instance
+            .collection('timetables')
+            .doc(timetableId)
+            .update({
+          'status': 'diverted',
+          'resolvedVenue': suggestedVenue,
+        });
+        // Optionally send notification: "Your class has been moved to $suggestedVenue"
+      }
+      // Optionally show a message: "Room already in use. You have been diverted."
     }
-
-    await FirebaseFirestore.instance.collection('student_check_ins').add({
-      'studentId': user.uid,
-      'timetableId': timetableId,
-      'timestamp': FieldValue.serverTimestamp(),
-      'date': today,
-    });
-
-    // Send notification to Admin and Lecturer
-    await _sendClockInNotification('clock_in');
 
     setState(() {
       _isClockedIn = true;
@@ -238,7 +298,8 @@ class _LectureCardWidgetState extends State<LectureCardWidget> {
                             const SizedBox(width: 4),
                             Text(
                               lecture["courseCode"]?.toString() ?? "",
-                              style: AppTheme.lightTheme.textTheme.titleSmall?.copyWith(
+                              style: AppTheme.lightTheme.textTheme.titleSmall
+                                  ?.copyWith(
                                 color: isReallocated
                                     ? Colors.amber.shade700
                                     : AppTheme.primary700,
@@ -297,14 +358,16 @@ class _LectureCardWidgetState extends State<LectureCardWidget> {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: _getStatusColor(lecture["status"]?.toString() ?? "")
                         .withAlpha(26),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: _getStatusColor(lecture["status"]?.toString() ?? "")
-                          .withAlpha(77),
+                      color:
+                          _getStatusColor(lecture["status"]?.toString() ?? "")
+                              .withAlpha(77),
                     ),
                   ),
                   child: Row(
@@ -315,14 +378,17 @@ class _LectureCardWidgetState extends State<LectureCardWidget> {
                             : lecture["status"] == "completed"
                                 ? Icons.check_circle_rounded
                                 : Icons.schedule_rounded,
-                        color: _getStatusColor(lecture["status"]?.toString() ?? ""),
+                        color: _getStatusColor(
+                            lecture["status"]?.toString() ?? ""),
                         size: 16,
                       ),
                       const SizedBox(width: 4),
                       Text(
                         _getStatusText(lecture["status"]?.toString() ?? ""),
-                        style: AppTheme.lightTheme.textTheme.labelSmall?.copyWith(
-                          color: _getStatusColor(lecture["status"]?.toString() ?? ""),
+                        style:
+                            AppTheme.lightTheme.textTheme.labelSmall?.copyWith(
+                          color: _getStatusColor(
+                              lecture["status"]?.toString() ?? ""),
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -342,11 +408,13 @@ class _LectureCardWidgetState extends State<LectureCardWidget> {
                 // Show all lecture details as in Firebase
                 Row(
                   children: [
-                    Icon(Icons.info_outline_rounded, color: AppTheme.primary600, size: 18),
+                    Icon(Icons.info_outline_rounded,
+                        color: AppTheme.primary600, size: 18),
                     const SizedBox(width: 6),
                     Text(
                       lecture["courseTitle"]?.toString() ?? "",
-                      style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                      style:
+                          AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w500,
                       ),
                       maxLines: 1,
@@ -382,7 +450,8 @@ class _LectureCardWidgetState extends State<LectureCardWidget> {
                       const SizedBox(width: 4),
                       Text(
                         'Changed from Room ${lecture["originalVenue"]?.toString() ?? ""}',
-                        style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                        style:
+                            AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
                           color: Colors.amber.shade600,
                         ),
                       ),
@@ -399,7 +468,8 @@ class _LectureCardWidgetState extends State<LectureCardWidget> {
                     const SizedBox(width: 16),
                     _buildInfoItem(
                       icon: 'schedule',
-                      label: 'Time: ${lecture["startTime"]?.toString() ?? ""} - ${lecture["endTime"]?.toString() ?? ""}',
+                      label:
+                          'Time: ${lecture["startTime"]?.toString() ?? ""} - ${lecture["endTime"]?.toString() ?? ""}',
                     ),
                   ],
                 ),
@@ -409,7 +479,9 @@ class _LectureCardWidgetState extends State<LectureCardWidget> {
                     Expanded(
                       child: ElevatedButton.icon(
                         icon: Icon(
-                          _isClockedIn ? Icons.logout_rounded : Icons.login_rounded,
+                          _isClockedIn
+                              ? Icons.logout_rounded
+                              : Icons.login_rounded,
                           color: Colors.white,
                           size: 18,
                         ),
@@ -435,7 +507,8 @@ class _LectureCardWidgetState extends State<LectureCardWidget> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: OutlinedButton.icon(
-                        icon: const Icon(Icons.map_rounded, color: AppTheme.primary600, size: 18),
+                        icon: const Icon(Icons.map_rounded,
+                            color: AppTheme.primary600, size: 18),
                         label: const Text('View Map'),
                         onPressed: widget.onViewMap,
                         style: OutlinedButton.styleFrom(

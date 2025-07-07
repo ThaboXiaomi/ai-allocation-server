@@ -10,7 +10,6 @@ import './widgets/quick_action_button_widget.dart';
 import './widgets/venue_map_widget.dart';
 import 'package:lecture_room_allocator/presentation/common/code_viewer_screen.dart';
 
-
 class StudentDashboardScreen extends StatefulWidget {
   const StudentDashboardScreen({Key? key}) : super(key: key);
 
@@ -91,7 +90,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
         Map<String, dynamic> lecture = {"id": doc.id, ...data};
 
         // Fetch lecturer name from lecturers collection
-        if (data['lecturerId'] != null && data['lecturerId'].toString().isNotEmpty) {
+        if (data['lecturerId'] != null &&
+            data['lecturerId'].toString().isNotEmpty) {
           final lecturerDoc = await FirebaseFirestore.instance
               .collection('lecturers')
               .doc(data['lecturerId'])
@@ -106,12 +106,30 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
           lecture['instructor'] = '';
         }
 
+        // Fetch room name from lecture_room collection
+        if (data['roomId'] != null && data['roomId'].toString().isNotEmpty) {
+          final roomDoc = await FirebaseFirestore.instance
+              .collection('lecture_room')
+              .doc(data['roomId'])
+              .get();
+          if (roomDoc.exists) {
+            final roomData = roomDoc.data();
+            lecture['roomName'] =
+                roomData?['name'] ?? roomData?['roomNumber'] ?? 'Room';
+          } else {
+            lecture['roomName'] = 'Room';
+          }
+        } else {
+          lecture['roomName'] = 'Room';
+        }
+
         lectures.add(lecture);
       }
 
       setState(() => _lectureSchedule = lectures);
     } catch (e) {
-      setState(() => _lectureScheduleError = "Failed to load lecture schedule.");
+      setState(
+          () => _lectureScheduleError = "Failed to load lecture schedule.");
     } finally {
       setState(() => _isLoadingLectureSchedule = false);
     }
@@ -349,6 +367,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
                                       .isNotEmpty)
                               ? lecture["endTime"].toString()
                               : "",
+                          "room": lecture["roomName"] ?? "Room",
                         },
                         onViewMap: () => setState(() => _showMap = true),
                       )),
@@ -414,6 +433,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
                                 lecture["endTime"].toString().trim().isNotEmpty)
                             ? lecture["endTime"].toString()
                             : "",
+                        "room": lecture["roomName"] ?? "Room",
                       },
                       onViewMap: () => setState(() => _showMap = true),
                     ))
@@ -686,10 +706,14 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
                     label: 'Lecturer Information',
                     onTap: () {
                       Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text(
-                                "Lecturer Information: Feature coming soon!")),
+                      Navigator.pushNamed(
+                        context,
+                        '/code-viewer',
+                        arguments: {
+                          'filePath':
+                              'lib/presentation/student_dashboard/widgets/lecture_card_widget.dart',
+                          'fileName': 'lecture_card_widget.dart',
+                        },
                       );
                     },
                     textColor: textColor,
@@ -699,15 +723,14 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
                     label: 'Attendance Stats',
                     onTap: () {
                       Navigator.pop(context);
-                      Navigator.push(
+                      Navigator.pushNamed(
                         context,
-                        MaterialPageRoute(
-                          builder: (context) => const CodeViewerScreen(
-                            filePath:
-                                'lib/presentation/student_dashboard/widgets/attendance_stats_widget.dart',
-                            fileName: 'attendance_stats_widget.dart',
-                          ),
-                        ),
+                        '/code-viewer',
+                        arguments: {
+                          'filePath':
+                              'lib/presentation/student_dashboard/widgets/attendance_stats_widget.dart',
+                          'fileName': 'attendance_stats_widget.dart',
+                        },
                       );
                     },
                     textColor: textColor,
@@ -717,15 +740,14 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
                     label: 'Notifications',
                     onTap: () {
                       Navigator.pop(context);
-                      Navigator.push(
+                      Navigator.pushNamed(
                         context,
-                        MaterialPageRoute(
-                          builder: (context) => const CodeViewerScreen(
-                            filePath:
-                                'lib/presentation/student_dashboard/widgets/notification_card_widget.dart',
-                            fileName: 'notification_card_widget.dart',
-                          ),
-                        ),
+                        '/code-viewer',
+                        arguments: {
+                          'filePath':
+                              'lib/presentation/student_dashboard/widgets/notification_card_widget.dart',
+                          'fileName': 'notification_card_widget.dart',
+                        },
                       );
                     },
                     textColor: textColor,
@@ -735,15 +757,14 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
                     label: 'Venue Map',
                     onTap: () {
                       Navigator.pop(context);
-                      Navigator.push(
+                      Navigator.pushNamed(
                         context,
-                        MaterialPageRoute(
-                          builder: (context) => const CodeViewerScreen(
-                            filePath:
-                                'lib/presentation/student_dashboard/widgets/venue_map_widget.dart',
-                            fileName: 'venue_map_widget.dart',
-                          ),
-                        ),
+                        '/code-viewer',
+                        arguments: {
+                          'filePath':
+                              'lib/presentation/student_dashboard/widgets/venue_map_widget.dart',
+                          'fileName': 'venue_map_widget.dart',
+                        },
                       );
                     },
                     textColor: textColor,

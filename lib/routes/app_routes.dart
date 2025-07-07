@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:lecture_room_allocator/presentation/portal_selection_screen/portal_selection_screen.dart';
+import 'package:lecture_room_allocator/presentation/common/code_viewer_screen.dart';
 import 'package:lecture_room_allocator/presentation/student_auth_screen/student_auth_screen.dart';
 import 'package:lecture_room_allocator/presentation/admin_login/admin_auth_screen.dart';
 import 'package:lecture_room_allocator/presentation/lecturer_auth_screen/lecturer_auth_screen.dart';
@@ -23,6 +24,7 @@ import 'package:lecture_room_allocator/presentation/lecturer_interface/widgets/n
 import 'package:lecture_room_allocator/presentation/lecturer_interface/widgets/venue_map_widget.dart';
 
 class AppRoutes {
+  static const String codeViewer = '/code-viewer';
   static const String portalSelection = '/portal-selection';
 
   static const String studentAuth = '/student-auth';
@@ -48,6 +50,7 @@ class AppRoutes {
   static const String lecturerVenueMap = '/lecturer-venue-map';
 
   static final Map<String, WidgetBuilder> routes = {
+    codeViewer: (_) => const CodeViewerScreen(filePath: '', fileName: ''),
     portalSelection: (_) => const PortalSelectionScreen(),
     studentAuth: (_) => const StudentAuthScreen(),
     adminAuth: (_) => const AdminAuthScreen(),
