@@ -29,10 +29,12 @@ class AllocationCardWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String status = allocation['status'];
-    final Color statusColor = _getStatusColor(status);
-    final bool isPending = status == 'Pending';
-    final bool isInProgress = status == 'In Progress';
+    final allocation = this.allocation;
+    final status = allocation['status'] ?? '';
+    final isPending = status == 'Pending';
+    final isInProgress = status == 'In Progress';
+    final isDiverted = status == 'diverted';
+    final venue = allocation['resolvedVenue'] ?? allocation['room'];
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -40,7 +42,7 @@ class AllocationCardWidget extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
         side: BorderSide(
-          color: statusColor.withAlpha(77),
+          color: _getStatusColor(status).withAlpha(77),
           width: 1,
         ),
       ),
@@ -55,10 +57,10 @@ class AllocationCardWidget extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: statusColor.withAlpha(26),
+                    color: _getStatusColor(status).withAlpha(26),
                     borderRadius: BorderRadius.circular(4),
                     border: Border.all(
-                      color: statusColor.withAlpha(77),
+                      color: _getStatusColor(status).withAlpha(77),
                     ),
                   ),
                   child: Row(
@@ -66,14 +68,14 @@ class AllocationCardWidget extends StatelessWidget {
                     children: [
                       CustomIconWidget(
                         iconName: _getStatusIcon(status),
-                        color: statusColor,
+                        color: _getStatusColor(status),
                         size: 16,
                       ),
                       const SizedBox(width: 4),
                       Text(
                         status,
                         style: TextStyle(
-                          color: statusColor,
+                          color: _getStatusColor(status),
                           fontWeight: FontWeight.w500,
                           fontSize: 12,
                         ),

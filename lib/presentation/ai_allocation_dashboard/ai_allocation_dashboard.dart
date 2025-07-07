@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import '../../theme/app_theme.dart' as ThemeAlias;
 import '../../widgets/custom_icon_widget.dart' as CustomIcons;
 import './widgets/allocation_card_widget.dart';
@@ -70,7 +72,7 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
     super.dispose();
   }
 
-  /// Fetch active allocations from Firestore
+  /// Fetch allocations from Firestore only
   Stream<List<Map<String, dynamic>>> _fetchActiveAllocations() {
     return FirebaseFirestore.instance
         .collection('allocations')
@@ -80,13 +82,15 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
               return {
                 ...data,
                 'id': doc.id,
+                'source': 'firebase',
               };
             }).toList());
   }
 
-  /// Fetch decision logs from Firestore
-  Stream<List<Map<String, dynamic>>> _fetchDecisionLogs() {
-    return FirebaseFirestore.instance
+  /// Fetch decision logs from Firestore and backend API
+  Stream<List<Map<String, dynamic>>> _fetchDecisionLogs() async* {
+    // 1. Firestore stream
+    final firestoreStream = FirebaseFirestore.instance
         .collection('decisionLogs')
         .snapshots()
         .map((snapshot) => snapshot.docs.map((doc) {
@@ -94,8 +98,42 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
               return {
                 ...data,
                 'id': doc.id,
+                'source': 'firebase',
               };
             }).toList());
+
+    // 2. Backend API fetch (one-time, not a stream)
+    Future<List<Map<String, dynamic>>> fetchBackendLogs() async {
+      try {
+        final uri = Uri.parse('http://localhost:3000/decision-logs');
+        final response = await http.get(uri);
+        if (response.statusCode == 200) {
+          final List<dynamic> data = json.decode(response.body);
+          return data
+              .map<Map<String, dynamic>>((e) => {
+                    ...e as Map<String, dynamic>,
+                    'source': 'backend',
+                  })
+              .toList();
+        }
+      } catch (e) {
+        print('Error fetching backend decision logs: $e');
+      }
+      return [];
+    }
+
+    // Combine both sources
+    await for (final firebaseLogs in firestoreStream) {
+      final backendLogs = await fetchBackendLogs();
+      // Merge and deduplicate by id if needed
+      final allLogs = <String, Map<String, dynamic>>{};
+      for (final log in [...firebaseLogs, ...backendLogs]) {
+        allLogs[log['id']?.toString() ??
+            log['allocationId']?.toString() ??
+            UniqueKey().toString()] = log;
+      }
+      yield allLogs.values.toList();
+    }
   }
 
   /// Fetch performance metrics from Firestore
@@ -326,34 +364,26 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
 
   Widget _buildAllocationTab() {
     return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: _fetchActiveAllocations(),
+      stream: _fetchActiveAllocations(), // Uses Firebase Firestore
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
-
         if (snapshot.hasError) {
-          // Print error to console for debugging
-          print('AllocationTab Firestore error: ${snapshot.error}');
           return Center(
               child: Text('Error loading allocations: ${snapshot.error}'));
         }
-
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return const Center(child: Text('No active allocations found.'));
         }
-
         final allocations = snapshot.data!;
-
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                "Active & Recent Allocations",
-                style: ThemeAlias.AppTheme.lightTheme.textTheme.titleLarge,
-              ),
+              Text("Active & Recent Allocations",
+                  style: ThemeAlias.AppTheme.lightTheme.textTheme.titleLarge),
               const SizedBox(height: 8),
               ListView.builder(
                 shrinkWrap: true,
@@ -370,10 +400,9 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    "Daily Timeline",
-                    style: ThemeAlias.AppTheme.lightTheme.textTheme.titleLarge,
-                  ),
+                  Text("Daily Timeline",
+                      style:
+                          ThemeAlias.AppTheme.lightTheme.textTheme.titleLarge),
                   IconButton(
                     icon: const CustomIcons.CustomIconWidget(
                         iconName: 'access_time',
@@ -390,7 +419,7 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
                 ],
               ),
               const SizedBox(height: 8),
-              _buildTimelineSection(), // New section for TimelineItemWidget
+              _buildTimelineSection(), // Timeline also uses Firebase
             ],
           ),
         );
@@ -432,23 +461,19 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
 
   Widget _buildPerformanceTab() {
     return FutureBuilder<Map<String, dynamic>>(
-      future: _fetchPerformanceMetrics(),
+      future: _fetchPerformanceMetrics(), // Uses Firebase Firestore
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
-
         if (snapshot.hasError) {
-          print('PerformanceTab Firestore error: ${snapshot.error}');
           return Center(
               child:
                   Text('Error loading performance metrics: ${snapshot.error}'));
         }
-
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return const Center(child: Text('No performance metrics found.'));
         }
-
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -469,10 +494,9 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    "Performance Trends",
-                    style: ThemeAlias.AppTheme.lightTheme.textTheme.titleLarge,
-                  ),
+                  Text("Performance Trends",
+                      style:
+                          ThemeAlias.AppTheme.lightTheme.textTheme.titleLarge),
                   IconButton(
                     icon: const Icon(Icons.show_chart_outlined,
                         color: ThemeAlias.AppTheme.neutral500),
@@ -489,7 +513,7 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
               ),
               const SizedBox(height: 8),
               SizedBox(
-                height: 250, // Give the chart a fixed height
+                height: 250,
                 child: AllocationChartWidget(
                   tooltipBgColor: ThemeAlias.AppTheme.neutral800.withAlpha(204),
                 ),
@@ -527,7 +551,7 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
 
   Widget _buildDecisionLogTab() {
     return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: _fetchDecisionLogs(),
+      stream: _fetchDecisionLogs(), // Uses both Firebase and backend API
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -568,7 +592,24 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
       builder: (context) {
         return AlertDialog(
           title: const Text('Decision Details'),
-          content: Text(decision['description'] ?? 'No details available.'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(decision['description'] ?? 'No details available.'),
+              const SizedBox(height: 8),
+              if (decision['conflictDetails'] != null)
+                Text('Conflict: ${decision['conflictDetails']}'),
+              if (decision['suggestedVenue'] != null)
+                Text('Suggested Venue: ${decision['suggestedVenue']}'),
+              if (decision['timestamp'] != null)
+                Text('Time: ${decision['timestamp'].toDate()}'),
+              if (decision['status'] != null)
+                Text('Status: ${decision['status']}'),
+              if (decision['resolvedBy'] != null)
+                Text('Resolved By: ${decision['resolvedBy']}'),
+            ],
+          ),
           actions: [
             TextButton(
               onPressed: () {
