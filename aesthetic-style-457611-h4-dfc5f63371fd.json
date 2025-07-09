@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "aesthetic-style-457611-h4",
+  "private_key_id": "dfc5f63371fdf5b125c73f083a502b28570d197b",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDY+mUVuwHxeRh7\nOtwpedQPcCPR5NnpF5O6X85lO1ELBsBaj2gx+sbiktBpB01xWrYpufKVPmYjriZj\nMaVpQD9D46V1xWiSFs2I0ot13PObnV3f4/4DtvEuUGbkpEgbdzzoQ4W3Us7c5mwF\nIYdiFlRx43nzqGr9AeHQKDubPQw8Sxjv0DjdssbeE8ln6hR75Q88VeBDxXii/uQ0\nFhD63KMNz9ZDv97mk90y+zOVaHETgrCD7Kzf0KjwohePy2z8uxd+shE+YJVKp4LF\n40Hyj2XYTJOrTPdUD88Yhd4H9za0f+Gglj4SrCeVo4OPavfo1J4NTP02kqA+u7w0\nZjlREICzAgMBAAECggEAVVoKMYYiuY5dJvx8ZoRZ+siuDn7riVmQ7xuI4SF4O9Io\nEHehESgI3E/MU8RfnluElN1ko3isTRTQXOzGmKSBPn9qMu24uN7ncw7/dRm5all4\n9/2DioqITSOrlf1ZsBQzjVoiW37jiNnLXClYTClkhnhpHIP/sg7veSaaa/KTwZM/\nWE4UnjYzMrrJ9gG3x13o80nW4J+M9/yM4e+ZXQtsSpR+px+alsVK+O0EFc3ZpfMK\nJUbordqLzuGH4Atlh86h16arxlM1y/UhY+3zJ72EACKzXoAtJIUufnMo9ujIHXBw\nBitldQ9V9Ghx0NY+WuhXf7LSDJl7/dF40divUFP7YQKBgQD28DmCMtfk4y3qLWCp\nH5tm7AS07R8TUU+SINOqVEMPlz7zjijJ0F8ozFgy7oBgBzUTFaGLJMfgJEHzOGIw\ntCg4MnLzM049p/1cm6U+n6Zi1VulD+6LKaP+WxHVj8DLRrAvxoOqgw1+2og578Xb\ngMQZEYvhSREjnHIHX9B/8R1/tQKBgQDg8LgR3P6Jth8kdDbm12e5EGD05Yp++7bR\ntoG5BnAsfLcBVnnzOJrtsiVbG5Y1J/tQDT7MhahJR9qc/1FZAmziBBGkkUIgCOBv\nFOs0UovKMcjmA+sTvZA1mDfxA4kWkD5hv75VHZLfMMZ2N52myDOb0op5yybq8f4r\nzPu3I/AvxwKBgQCxDQpetK+g19Ya2lA80oGsqLqzMnSeeCUyI8E/lczDR/EF1b6e\n/HzOFr2CPwjiUSiXt2GtD0EUD0sN5TZZr0JLELjkcLu/b0w0cxBmtzcoE8vyrFqf\ngsqnW4qM8dYMqXE3wAC1Z+NsOamEyMq3GDsBslf1vlrAirIjYWpv4WQCJQKBgFTl\npaNgVFVnfmOE1T/U5tnrO5zSka4RlNOb3WQW8PlpbKy9lbNdluPFi+HSDKQtXeW9\nygjpHTXjP7hniK1eg/fd70a8aEes8gAa1hbeXNJIbfmaWvwNXMNNmzeEzRXOBS1h\ncBWx3sAMKatunDrZbtkN4qPLL/oWsYaYjBx4HOv7AoGBAIbVTGOmIuZNaY5i17sJ\n/rx1LddN++S9KYn8KQDW7C7l9x4pBJXYDG8fz6VeZUZufV3/BeQY9eocNrqcFPw7\n5QdNOzhfjlmWgR/7ujV72qW1aq+Et0FlBouWYlTObz/Of8x4TRzSqPGNFJUAECKu\n08m4y8uMqizrRezl9bFD8Xt2\n-----END PRIVATE KEY-----\n",
+  "client_email": "ai-allocation-server@aesthetic-style-457611-h4.iam.gserviceaccount.com",
+  "client_id": "117504324451865602570",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/ai-allocation-server%40aesthetic-style-457611-h4.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}

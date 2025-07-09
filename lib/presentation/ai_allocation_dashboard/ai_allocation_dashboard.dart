@@ -47,23 +47,22 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
   }
 
   Future<void> _loadFilterOptions() async {
-    // Example Firestore fetch for faculties and buildings
-    final facultiesSnapshot =
-        await FirebaseFirestore.instance.collection('faculties').get();
-    final buildingsSnapshot =
-        await FirebaseFirestore.instance.collection('buildings').get();
-
-    setState(() {
-      _faculties = [
-        'All',
-        ...facultiesSnapshot.docs.map((doc) => doc['name'] as String)
-      ];
-      _buildings = [
-        'All',
-        ...buildingsSnapshot.docs.map((doc) => doc['name'] as String)
-      ];
-      // _timeframes can be static or fetched similarly
-    });
+    try {
+      final schoolsSnapshot =
+          await FirebaseFirestore.instance.collection('schools').get();
+      setState(() {
+        _faculties = [
+          'All',
+          ...schoolsSnapshot.docs.map((doc) => doc['name'] as String)
+        ];
+        // ...existing code for buildings...
+      });
+    } catch (e) {
+      setState(() {
+        _faculties = ['All'];
+      });
+      print('Error loading schools: $e');
+    }
   }
 
   @override
@@ -313,10 +312,15 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Filters',
-                style: ThemeAlias.AppTheme.lightTheme.textTheme.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w600),
+              Row(
+                children: [
+                  Icon(Icons.filter_alt_rounded, color: ThemeAlias.AppTheme.primary600),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Filters',
+                    style: ThemeAlias.AppTheme.lightTheme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                ],
               ),
               IconButton(
                 icon: const CustomIcons.CustomIconWidget(
@@ -334,28 +338,40 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
             ],
           ),
           const SizedBox(height: 8),
-          AllocationFilterWidget(
-            selectedFaculty: _selectedFaculty,
-            selectedBuilding: _selectedBuilding,
-            selectedTimeframe: _selectedTimeframe,
-            facultyList: _faculties, // Pass the lists here
-            buildingList: _buildings,
-            timeframeList: _timeframes,
-            onFacultyChanged: (value) {
-              setState(() {
-                _selectedFaculty = value;
-              });
-            },
-            onBuildingChanged: (value) {
-              setState(() {
-                _selectedBuilding = value;
-              });
-            },
-            onTimeframeChanged: (value) {
-              setState(() {
-                _selectedTimeframe = value;
-              });
-            },
+          Row(
+            children: [
+              Icon(Icons.school, color: ThemeAlias.AppTheme.primary400),
+              const SizedBox(width: 4),
+              Expanded(
+                child: AllocationFilterWidget(
+                  selectedFaculty: _selectedFaculty,
+                  selectedBuilding: _selectedBuilding,
+                  selectedTimeframe: _selectedTimeframe,
+                  facultyList: _faculties,
+                  buildingList: _buildings,
+                  timeframeList: _timeframes,
+                  onFacultyChanged: (value) {
+                    setState(() {
+                      _selectedFaculty = value;
+                    });
+                  },
+                  onBuildingChanged: (value) {
+                    setState(() {
+                      _selectedBuilding = value;
+                    });
+                  },
+                  onTimeframeChanged: (value) {
+                    setState(() {
+                      _selectedTimeframe = value;
+                    });
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(Icons.location_city, color: ThemeAlias.AppTheme.primary400),
+              const SizedBox(width: 4),
+              Icon(Icons.access_time, color: ThemeAlias.AppTheme.primary400),
+            ],
           ),
         ],
       ),
@@ -461,35 +477,77 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
 
   Widget _buildPerformanceTab() {
     return FutureBuilder<Map<String, dynamic>>(
-      future: _fetchPerformanceMetrics(), // Uses Firebase Firestore
+      future: _fetchPerformanceMetrics(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
           return Center(
-              child:
-                  Text('Error loading performance metrics: ${snapshot.error}'));
+              child: Text(
+                  'Error loading performance metrics: \\${snapshot.error}'));
         }
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return const Center(child: Text('No performance metrics found.'));
         }
+        final metrics = snapshot.data!;
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildPerformanceIndicatorItem(
-                  'optimizationRate', 'Optimization Rate'),
+              Text("System Performance Overview",
+                  style: ThemeAlias.AppTheme.lightTheme.textTheme.titleLarge),
               const SizedBox(height: 16),
-              _buildPerformanceIndicatorItem(
-                  'venueUtilization', 'Venue Utilization'),
-              const SizedBox(height: 16),
-              _buildPerformanceIndicatorItem(
-                  'conflictResolutionRate', 'Conflict Resolution'),
-              const SizedBox(height: 16),
-              _buildPerformanceIndicatorItem(
-                  'avgWalkingDistance', 'Avg. Walking Distance'),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildCircularMetric(
+                    value: (metrics['optimizationRate'] ?? 0.0) * 1.0,
+                    label: 'Optimization',
+                    color: Colors.blueAccent,
+                  ),
+                  _buildCircularMetric(
+                    value: (metrics['venueUtilization'] ?? 0.0) * 1.0,
+                    label: 'Venue Utilization',
+                    color: Colors.green,
+                  ),
+                  _buildCircularMetric(
+                    value: (metrics['conflictResolutionRate'] ?? 0.0) * 1.0,
+                    label: 'Conflict Res.',
+                    color: Colors.orange,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Average Walking Distance',
+                          style: ThemeAlias
+                              .AppTheme.lightTheme.textTheme.titleMedium),
+                      const SizedBox(height: 8),
+                      LinearProgressIndicator(
+                        value: ((metrics['avgWalkingDistance'] ?? 0.0) as num) /
+                            100,
+                        minHeight: 12,
+                        backgroundColor: Colors.grey.shade200,
+                        color: Colors.purple,
+                      ),
+                      const SizedBox(height: 4),
+                      Text('${metrics['avgWalkingDistance'] ?? 0} meters',
+                          style: ThemeAlias
+                              .AppTheme.lightTheme.textTheme.bodyMedium),
+                    ],
+                  ),
+                ),
+              ),
               const SizedBox(height: 24),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -525,6 +583,39 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
     );
   }
 
+  Widget _buildCircularMetric(
+      {required double value, required String label, required Color color}) {
+    return Column(
+      children: [
+        Stack(
+          alignment: Alignment.center,
+          children: [
+            SizedBox(
+              width: 70,
+              height: 70,
+              child: CircularProgressIndicator(
+                value: value > 1 ? value / 100 : value,
+                strokeWidth: 7,
+                backgroundColor: color.withOpacity(0.15),
+                valueColor: AlwaysStoppedAnimation<Color>(color),
+              ),
+            ),
+            Text(
+              value > 1
+                  ? '${value.toStringAsFixed(0)}%'
+                  : '${(value * 100).toStringAsFixed(0)}%',
+              style: TextStyle(
+                  fontWeight: FontWeight.bold, fontSize: 16, color: color),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(label,
+            style: ThemeAlias.AppTheme.lightTheme.textTheme.bodyMedium),
+      ],
+    );
+  }
+
   Widget _buildPerformanceIndicatorItem(String documentId, String title) {
     return Row(
       children: [
@@ -551,35 +642,86 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
 
   Widget _buildDecisionLogTab() {
     return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: _fetchDecisionLogs(), // Uses both Firebase and backend API
+      stream: _fetchDecisionLogs(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
-
         if (snapshot.hasError) {
-          print('DecisionLogTab Firestore error: ${snapshot.error}');
+          print('DecisionLogTab Firestore error: \\${snapshot.error}');
           return Center(
-              child: Text('Error loading decision logs: ${snapshot.error}'));
+              child: Text('Error loading decision logs: \\${snapshot.error}'));
         }
-
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return const Center(child: Text('No decision logs found.'));
         }
-
         final decisionLogs = snapshot.data!;
-
-        return ListView.builder(
+        // Group by status for a simple bar chart
+        final Map<String, int> statusCounts = {};
+        for (final log in decisionLogs) {
+          final status = log['status']?.toString() ?? 'unknown';
+          statusCounts[status] = (statusCounts[status] ?? 0) + 1;
+        }
+        return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
-          itemCount: decisionLogs.length,
-          itemBuilder: (context, index) {
-            return DecisionLogItemWidget(
-              decision: decisionLogs[index],
-              onViewDetails: () {
-                _showDecisionDetailsDialog(context, decisionLogs[index]);
-              },
-            );
-          },
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Allocation Log Summary',
+                  style: ThemeAlias.AppTheme.lightTheme.textTheme.titleLarge),
+              const SizedBox(height: 16),
+              Text('Logs by Status',
+                  style: ThemeAlias.AppTheme.lightTheme.textTheme.titleMedium),
+              const SizedBox(height: 8),
+              Row(
+                children: statusCounts.entries.map((entry) {
+                  return Expanded(
+                    child: Column(
+                      children: [
+                        Container(
+                          height: (entry.value * 18.0).clamp(12, 120),
+                          width: 24,
+                          decoration: BoxDecoration(
+                            color: entry.key == 'resolved'
+                                ? Colors.green
+                                : entry.key == 'diverted'
+                                    ? Colors.orange
+                                    : Colors.grey,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(entry.key,
+                            style: ThemeAlias
+                                .AppTheme.lightTheme.textTheme.bodySmall),
+                        Text(entry.value.toString(),
+                            style: ThemeAlias
+                                .AppTheme.lightTheme.textTheme.bodySmall
+                                ?.copyWith(fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 24),
+              Text('All Allocation Logs',
+                  style: ThemeAlias.AppTheme.lightTheme.textTheme.titleMedium),
+              const SizedBox(height: 8),
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: decisionLogs.length,
+                itemBuilder: (context, index) {
+                  return DecisionLogItemWidget(
+                    decision: decisionLogs[index],
+                    onViewDetails: () {
+                      _showDecisionDetailsDialog(context, decisionLogs[index]);
+                    },
+                  );
+                },
+              ),
+            ],
+          ),
         );
       },
     );

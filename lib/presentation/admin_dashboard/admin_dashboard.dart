@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:lecture_room_allocator/presentation/admin_login/admin_auth_screen.dart';
 
 import '../../theme/app_theme.dart';
 import '../../widgets/custom_icon_widget.dart';
@@ -320,8 +321,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     title: const Text('Logout',
                         style: TextStyle(color: Colors.red)),
                     onTap: () {
-                      Navigator.pop(context);
-                      Navigator.pushReplacementNamed(context, '/admin-login');
+                      Navigator.of(context).pop(); // Close drawer
+                      FirebaseAuth.instance.signOut().then((_) {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                const AdminAuthScreen(), // Replace with your login page
+                          ),
+                        ); // Redirect to login
+                      });
                     },
                   ),
                 ],
