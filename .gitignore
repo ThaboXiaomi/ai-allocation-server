@@ -48,3 +48,12 @@ app.*.map.json
 
 .env
 .env.local
+
+# Sensitive credentials and secrets
+*.json
+!pubspec.lock
+
+# Common secret/config files
+aesthetic-style-457611-h4-dfc5f63371fd.json
+campus-venue-navigator-firebase-adminsdk-fbsvc-60112e76dd.json
+OAuth2 Configurations.json
