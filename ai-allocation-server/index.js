@@ -183,3 +183,48 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () =>
   console.log(`✅ AI Allocation server running on port ${PORT}`)
 );
+
+const { google } = require("googleapis");
+const SCOPES = ["https://www.googleapis.com/auth/cloud-platform"];
+
+// Utility function to get Google access token from service account
+function getAccessToken() {
+  return new Promise(function(resolve, reject) {
+    const key = require('D:\\PC USER\\Documents\\School\\Final Year Project\\lecture_room_allocator\\campus-venue-navigator-firebase-adminsdk-fbsvc-60112e76dd.json');
+    const jwtClient = new google.auth.JWT(
+      key.client_email,
+      null,
+      key.private_key,
+      SCOPES,
+      null
+    );
+    jwtClient.authorize(function(err, tokens) {
+      if (err) {
+        reject(err);
+        return;
+      }
+      resolve(tokens.access_token);
+    });
+  });
+}
+
+// Google OAuth2 setup (replace with your actual credentials)
+const oauth2Client = new google.auth.OAuth2(
+  process.env.GOOGLE_CLIENT_ID,      // YOUR_CLIENT_ID
+  process.env.GOOGLE_CLIENT_SECRET,  // YOUR_CLIENT_SECRET
+  process.env.GOOGLE_REDIRECT_URL    // YOUR_REDIRECT_URL
+);
+
+// generate a url that asks permissions for Blogger and Google Calendar scopes
+const scopes = [
+  'https://www.googleapis.com/auth/blogger',
+  'https://www.googleapis.com/auth/calendar'
+];
+
+const url = oauth2Client.generateAuthUrl({
+  // 'online' (default) or 'offline' (gets refresh_token)
+  access_type: 'offline',
+
+  // If you only need one scope, you can pass it as a string
+  scope: scopes
+});
