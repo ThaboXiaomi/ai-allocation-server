@@ -112,10 +112,17 @@ class _LectureCardWidgetState extends State<LectureCardWidget> {
           .doc(timetableId)
           .update({'status': 'in-progress'});
       // Optionally send notification: "Check-in successful"
+      setState(() {
+        _isClockedIn = true;
+        _loading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Clock-in successful!')),
+      );
     } else {
       // Another class already checked in: trigger AI for this timetable
       final response = await http.post(
-        Uri.parse('http://localhost:3000/resolve-conflict'),
+        Uri.parse('http://10.7.16.77:5000/resolve-conflict'), // Updated to your local IP address
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'allocationId': timetableId,
@@ -135,19 +142,35 @@ class _LectureCardWidgetState extends State<LectureCardWidget> {
           'status': 'diverted',
           'resolvedVenue': suggestedVenue,
         });
-        // Optionally send notification: "Your class has been moved to $suggestedVenue"
+        setState(() {
+          _isClockedIn = true;
+          _loading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(
+                  'Room already in use. You have been diverted to $suggestedVenue.')),
+        );
+      } else {
+        // Try to show AI suggestion if present
+        String errorMsg = 'Room conflict could not be resolved. Please try again later.';
+        try {
+          final resp = jsonDecode(response.body);
+          if (resp['aiSuggestion'] != null && resp['aiSuggestion'].toString().isNotEmpty) {
+            errorMsg = resp['aiSuggestion'];
+          } else if (resp['error'] != null) {
+            errorMsg = resp['error'];
+          }
+        } catch (_) {}
+        setState(() {
+          _isClockedIn = false;
+          _loading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMsg)),
+        );
       }
-      // Optionally show a message: "Room already in use. You have been diverted."
     }
-
-    setState(() {
-      _isClockedIn = true;
-      _loading = false;
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Clock-in successful!')),
-    );
   }
 
   Future<void> _unclockIn() async {

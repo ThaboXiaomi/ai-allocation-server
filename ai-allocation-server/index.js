@@ -20,10 +20,10 @@ admin.initializeApp({
 const db = admin.firestore();
 
 // 3. Initialize OpenAI client
-const { Configuration, OpenAIApi } = require("openai");
-const openai = new OpenAIApi(
-  new Configuration({ apiKey: process.env.OPENAI_API_KEY })
-);
+const { OpenAI } = require("openai");
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+});
 
 // 4. Create Express app
 const express = require("express");
