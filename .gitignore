@@ -1,59 +1,68 @@
-# Miscellaneous
+# -----------------------------
+# General
+# -----------------------------
 *.class
 *.log
 *.pyc
 *.swp
 .DS_Store
-.atom/
-.build/
-.buildlog/
 .history
 .svn/
-.swiftpm/
-migrate_working_dir/
-pubspec.lock
-
-# IntelliJ related
 *.iml
 *.ipr
 *.iws
+
+# -----------------------------
+# Editor Configs
+# -----------------------------
+.atom/
 .idea/
+.vscode/  # Uncomment this if you want to ignore VS Code configs
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
-
-# Flutter/Dart/Pub related
-**/doc/api/
-**/ios/Flutter/.last_build_id
+# -----------------------------
+# Build Artifacts
+# -----------------------------
+.build/
+.buildlog/
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
 /build/
+**/doc/api/
+**/ios/Flutter/.last_build_id
 
-# Symbolication related
+# Android Studio Build Outputs
+/android/app/debug/
+/android/app/profile/
+/android/app/release/
+
+# Symbolication / Obfuscation
 app.*.symbols
-
-# Obfuscation related
 app.*.map.json
 
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
+# -----------------------------
+# Dependency Lock Files
+# -----------------------------
+pubspec.lock  # Comment this out if you want to keep lockfiles for pub consistency
 
-
+# -----------------------------
+# Environment Files
+# -----------------------------
 .env
 .env.local
 
-# Sensitive credentials and secrets
-*.json
-!pubspec.lock
-
-# Common secret/config files
+# -----------------------------
+# Sensitive Files (Secrets, API Keys, OAuth)
+# -----------------------------
+*.json  # Be cautious with this — may ignore config files too
+!pubspec.lock  # Keep this to retain Dart dependencies
+# Known secret files (remove from repo if committed accidentally)
 aesthetic-style-457611-h4-dfc5f63371fd.json
 campus-venue-navigator-firebase-adminsdk-fbsvc-60112e76dd.json
 OAuth2 Configurations.json
+
+# Migration dirs (Dart, Flutter tools, etc.)
+migrate_working_dir/
+.swiftpm/

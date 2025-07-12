@@ -2,7 +2,11 @@ import os
 from google.cloud import firestore
 
 # Update this path if needed
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "D:\PC USER\Documents\School\Final Year Project\lecture_room_allocator\python_backend\credentials\campus-venue-navigator-d2bd86d4219a.json"
+google_creds = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+if google_creds is not None:
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = google_creds
+else:
+    raise EnvironmentError("GOOGLE_APPLICATION_CREDENTIALS environment variable is not set.")
 
 try:
     db = firestore.Client()
