@@ -42,27 +42,6 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    loadPerformanceMetrics();
-    _loadFilterOptions();
-  }
-
-  Future<void> _loadFilterOptions() async {
-    try {
-      final schoolsSnapshot =
-          await FirebaseFirestore.instance.collection('schools').get();
-      setState(() {
-        _faculties = [
-          'All',
-          ...schoolsSnapshot.docs.map((doc) => doc['name'] as String)
-        ];
-        // ...existing code for buildings...
-      });
-    } catch (e) {
-      setState(() {
-        _faculties = ['All'];
-      });
-      print('Error loading schools: $e');
-    }
   }
 
   @override
@@ -312,15 +291,11 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Icon(Icons.filter_alt_rounded, color: ThemeAlias.AppTheme.primary600),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Filters',
-                    style: ThemeAlias.AppTheme.lightTheme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-                  ),
-                ],
+              Text(
+                'Filters',
+                style: ThemeAlias.AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600
+                ),
               ),
               IconButton(
                 icon: const CustomIcons.CustomIconWidget(
@@ -338,40 +313,25 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
             ],
           ),
           const SizedBox(height: 8),
-          Row(
-            children: [
-              Icon(Icons.school, color: ThemeAlias.AppTheme.primary400),
-              const SizedBox(width: 4),
-              Expanded(
-                child: AllocationFilterWidget(
-                  selectedFaculty: _selectedFaculty,
-                  selectedBuilding: _selectedBuilding,
-                  selectedTimeframe: _selectedTimeframe,
-                  facultyList: _faculties,
-                  buildingList: _buildings,
-                  timeframeList: _timeframes,
-                  onFacultyChanged: (value) {
-                    setState(() {
-                      _selectedFaculty = value;
-                    });
-                  },
-                  onBuildingChanged: (value) {
-                    setState(() {
-                      _selectedBuilding = value;
-                    });
-                  },
-                  onTimeframeChanged: (value) {
-                    setState(() {
-                      _selectedTimeframe = value;
-                    });
-                  },
-                ),
-              ),
-              const SizedBox(width: 8),
-              Icon(Icons.location_city, color: ThemeAlias.AppTheme.primary400),
-              const SizedBox(width: 4),
-              Icon(Icons.access_time, color: ThemeAlias.AppTheme.primary400),
-            ],
+          AllocationFilterWidget(
+            selectedFaculty: _selectedFaculty,
+            selectedBuilding: _selectedBuilding,
+            selectedTimeframe: _selectedTimeframe,
+            onFacultyChanged: (value) {
+              setState(() {
+                _selectedFaculty = value;
+              });
+            },
+            onBuildingChanged: (value) {
+              setState(() {
+                _selectedBuilding = value;
+              });
+            },
+            onTimeframeChanged: (value) {
+              setState(() {
+                _selectedTimeframe = value;
+              });
+            },
           ),
         ],
       ),
@@ -477,77 +437,33 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
 
   Widget _buildPerformanceTab() {
     return FutureBuilder<Map<String, dynamic>>(
-      future: _fetchPerformanceMetrics(),
+      future: _fetchPerformanceMetrics(), // Uses Firebase Firestore
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
-          return Center(
-              child: Text(
-                  'Error loading performance metrics: \\${snapshot.error}'));
+          print('PerformanceTab Firestore error: ${snapshot.error}');
+          return Center(child: Text('Error loading performance metrics: ${snapshot.error}'));
         }
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return const Center(child: Text('No performance metrics found.'));
         }
+
         final metrics = snapshot.data!;
+
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("System Performance Overview",
-                  style: ThemeAlias.AppTheme.lightTheme.textTheme.titleLarge),
+              _buildPerformanceIndicatorItem('optimizationRate', 'Optimization Rate'),
               const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _buildCircularMetric(
-                    value: (metrics['optimizationRate'] ?? 0.0) * 1.0,
-                    label: 'Optimization',
-                    color: Colors.blueAccent,
-                  ),
-                  _buildCircularMetric(
-                    value: (metrics['venueUtilization'] ?? 0.0) * 1.0,
-                    label: 'Venue Utilization',
-                    color: Colors.green,
-                  ),
-                  _buildCircularMetric(
-                    value: (metrics['conflictResolutionRate'] ?? 0.0) * 1.0,
-                    label: 'Conflict Res.',
-                    color: Colors.orange,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              Card(
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Average Walking Distance',
-                          style: ThemeAlias
-                              .AppTheme.lightTheme.textTheme.titleMedium),
-                      const SizedBox(height: 8),
-                      LinearProgressIndicator(
-                        value: ((metrics['avgWalkingDistance'] ?? 0.0) as num) /
-                            100,
-                        minHeight: 12,
-                        backgroundColor: Colors.grey.shade200,
-                        color: Colors.purple,
-                      ),
-                      const SizedBox(height: 4),
-                      Text('${metrics['avgWalkingDistance'] ?? 0} meters',
-                          style: ThemeAlias
-                              .AppTheme.lightTheme.textTheme.bodyMedium),
-                    ],
-                  ),
-                ),
-              ),
+              _buildPerformanceIndicatorItem('venueUtilization', 'Venue Utilization'),
+              const SizedBox(height: 16),
+              _buildPerformanceIndicatorItem('conflictResolutionRate', 'Conflict Resolution'),
+              const SizedBox(height: 16),
+              _buildPerformanceIndicatorItem('avgWalkingDistance', 'Avg. Walking Distance'),
               const SizedBox(height: 24),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -642,15 +558,14 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
 
   Widget _buildDecisionLogTab() {
     return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: _fetchDecisionLogs(),
+      stream: _fetchDecisionLogs(), // Uses both Firebase and backend API
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
-          print('DecisionLogTab Firestore error: \\${snapshot.error}');
-          return Center(
-              child: Text('Error loading decision logs: \\${snapshot.error}'));
+          print('DecisionLogTab Firestore error: ${snapshot.error}');
+          return Center(child: Text('Error loading decision logs: ${snapshot.error}'));
         }
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return const Center(child: Text('No decision logs found.'));

@@ -61,6 +61,7 @@ pubspec.lock  # Comment this out if you want to keep lockfiles for pub consisten
 # Known secret files (remove from repo if committed accidentally)
 aesthetic-style-457611-h4-dfc5f63371fd.json
 campus-venue-navigator-firebase-adminsdk-fbsvc-60112e76dd.json
+campus-venue-navigator-d2bd86d4219a.json
 OAuth2 Configurations.json
 
 # Migration dirs (Dart, Flutter tools, etc.)
