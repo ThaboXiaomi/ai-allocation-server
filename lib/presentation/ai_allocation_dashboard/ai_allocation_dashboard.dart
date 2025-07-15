@@ -317,6 +317,9 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
             selectedFaculty: _selectedFaculty,
             selectedBuilding: _selectedBuilding,
             selectedTimeframe: _selectedTimeframe,
+            facultyList: _faculties,
+            buildingList: _buildings,
+            timeframeList: _timeframes,
             onFacultyChanged: (value) {
               setState(() {
                 _selectedFaculty = value;

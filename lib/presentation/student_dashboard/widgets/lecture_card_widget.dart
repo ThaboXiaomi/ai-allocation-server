@@ -122,7 +122,8 @@ class _LectureCardWidgetState extends State<LectureCardWidget> {
     } else {
       // Another class already checked in: trigger AI for this timetable
       final response = await http.post(
-        Uri.parse('http://10.7.16.77:5000/resolve-conflict'), // Updated to your local IP address
+        Uri.parse(
+            'http://10.7.16.246:5000/resolve-conflict'), // Updated to your local IP address
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'allocationId': timetableId,
@@ -153,10 +154,12 @@ class _LectureCardWidgetState extends State<LectureCardWidget> {
         );
       } else {
         // Try to show AI suggestion if present
-        String errorMsg = 'Room conflict could not be resolved. Please try again later.';
+        String errorMsg =
+            'Room conflict could not be resolved. Please try again later.';
         try {
           final resp = jsonDecode(response.body);
-          if (resp['aiSuggestion'] != null && resp['aiSuggestion'].toString().isNotEmpty) {
+          if (resp['aiSuggestion'] != null &&
+              resp['aiSuggestion'].toString().isNotEmpty) {
             errorMsg = resp['aiSuggestion'];
           } else if (resp['error'] != null) {
             errorMsg = resp['error'];
@@ -448,16 +451,20 @@ class _LectureCardWidgetState extends State<LectureCardWidget> {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    _buildInfoItem(
-                      icon: 'person',
-                      label: lecture["instructor"]?.toString() ?? "",
+                    Expanded(
+                      child: _buildInfoItem(
+                        icon: 'person',
+                        label: lecture["instructor"]?.toString() ?? "",
+                      ),
                     ),
                     const SizedBox(width: 16),
-                    _buildInfoItem(
-                      icon: 'room',
-                      label: 'Room ${lecture["venue"]?.toString() ?? ""}',
-                      isHighlighted: isReallocated,
-                      highlightColor: AppTheme.warning600,
+                    Expanded(
+                      child: _buildInfoItem(
+                        icon: 'room',
+                        label: 'Room ${lecture["venue"]?.toString() ?? ""}',
+                        isHighlighted: isReallocated,
+                        highlightColor: AppTheme.warning600,
+                      ),
                     ),
                   ],
                 ),

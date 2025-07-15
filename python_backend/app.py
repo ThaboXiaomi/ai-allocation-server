@@ -1,13 +1,16 @@
 import os
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, make_response
+from flask_cors import CORS
 from google.cloud import firestore
 from dotenv import load_dotenv
 import openai
+import random  # Add this at the top
 
 # Load environment variables from .env
 load_dotenv()
 
 app = Flask(__name__)
+CORS(app)
 
 # Firestore setup
 firestore_creds = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
@@ -37,12 +40,23 @@ def get_decision_logs():
         print("Error fetching decision logs:", e)
         return jsonify({"error": "Failed to fetch decision logs."}), 500
 
-@app.route("/resolve-conflict", methods=["POST"])
+@app.route("/resolve-conflict", methods=['GET', 'POST', 'OPTIONS'])
 def resolve_conflict():
+    # Handle preflight OPTIONS request for CORS
+    if request.method == 'OPTIONS':
+        response = make_response()
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Methods'] = 'POST, GET, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+        response.status_code = 200
+        return response
+
     try:
         data = request.get_json(force=True)
     except Exception:
-        return jsonify({"error": "Invalid or malformed JSON."}), 400
+        response = jsonify({"error": "Invalid or malformed JSON."})
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        return response, 400
 
     required = ["allocationId", "date", "startTime", "endTime"]
     if not data or not all(k in data and data[k] for k in required):
@@ -119,8 +133,8 @@ def resolve_conflict():
             else:
                 return jsonify({"error": "No rooms available for the specified time."}), 400
 
-        # Suggest room using OpenAI (or pick first)
-        suggested_venue = available_rooms[0]
+        # Suggest room using OpenAI (or pick randomly)
+        suggested_venue = random.choice(available_rooms)
         if openai_api_key and len(available_rooms) > 1:
             try:
                 prompt = (
@@ -139,7 +153,7 @@ def resolve_conflict():
                 if ai_room in available_rooms:
                     suggested_venue = ai_room
             except Exception:
-                pass  # Use default if OpenAI fails
+                pass  # Use random if OpenAI fails
 
         # Update Firestore timetable document
         db.collection("timetables").document(allocation_id).update({
@@ -200,11 +214,15 @@ def resolve_conflict():
             "status": "resolved"
         })
 
-        return jsonify({"resolvedVenue": suggested_venue})
+        return_with_cors = jsonify({"resolvedVenue": suggested_venue})
+        return_with_cors.headers['Access-Control-Allow-Origin'] = '*'
+        return return_with_cors
 
     except Exception as e:
         print(f"Error in /resolve-conflict: {e}")
-        return jsonify({"error": "Internal server error", "details": str(e)}), 500
+        response = jsonify({"error": "Internal server error", "details": str(e)})
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        return response, 500
 
 @app.route("/allocations", methods=["GET"])
 def get_allocations():
