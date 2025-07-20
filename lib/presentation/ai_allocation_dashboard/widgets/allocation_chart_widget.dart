@@ -33,5 +33,4 @@ class AllocationChartWidget extends StatelessWidget {
       child: Text('Allocation Chart'),
     );
   }
-
 }

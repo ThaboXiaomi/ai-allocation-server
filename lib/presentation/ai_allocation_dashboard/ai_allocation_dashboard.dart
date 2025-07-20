@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+
 import '../../theme/app_theme.dart' as ThemeAlias;
 import '../../widgets/custom_icon_widget.dart' as CustomIcons;
 import './widgets/allocation_card_widget.dart';
@@ -11,19 +10,32 @@ import './widgets/decision_log_item_widget.dart';
 import './widgets/performance_indicator_widget.dart';
 import './widgets/timeline_item_widget.dart';
 
+// Moved Allocation class to the top level
+class Allocation {
+  final String id;
+  final String eventName;
+  final String description;
+  final String room;
+  final String status;
+  final String decisionLog; // from decisionLogs
+  final String timetable;   // from timetables
+
+  Allocation({
+    required this.id,
+    required this.eventName,
+    required this.description,
+    required this.room,
+    required this.status,
+    required this.decisionLog,
+    required this.timetable,
+  });
+}
+
 class AIAllocationDashboard extends StatefulWidget {
   const AIAllocationDashboard({Key? key}) : super(key: key);
 
   @override
   State<AIAllocationDashboard> createState() => _AIAllocationDashboardState();
-}
-
-// Mock class for demo purposes
-class PerformanceMetrics {
-  final int loadTime;
-  final int memoryUsage;
-
-  PerformanceMetrics(this.loadTime, this.memoryUsage);
 }
 
 class _AIAllocationDashboardState extends State<AIAllocationDashboard>
@@ -34,9 +46,9 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
   String _selectedTimeframe = 'Today';
   bool _isRealTimeUpdates = true;
 
-  List<String> _faculties = ['All'];
-  List<String> _buildings = ['All'];
-  List<String> _timeframes = ['Today', 'This Week', 'This Month'];
+  final List<String> _faculties = ['All'];
+  final List<String> _buildings = ['All'];
+  final List<String> _timeframes = ['Today', 'This Week', 'This Month'];
 
   @override
   void initState() {
@@ -50,7 +62,63 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
     super.dispose();
   }
 
-  /// Fetch allocations from Firestore only
+  // Fetch allocations with related decisionLog and timetable
+  Stream<List<Allocation>> _fetchAllocationsWithDetails() async* {
+    final allocationsSnapshot = await FirebaseFirestore.instance
+        .collection('allocations')
+        .get();
+
+    List<Allocation> allocations = [];
+
+    for (var doc in allocationsSnapshot.docs) {
+      final data = doc.data();
+      final allocationId = doc.id;
+
+      // Fetch related decisionLog
+      final decisionLogSnapshot = await FirebaseFirestore.instance
+          .collection('decisionLogs')
+          .where('allocationId', isEqualTo: allocationId)
+          .limit(1)
+          .get();
+      final decisionLogData = decisionLogSnapshot.docs.isNotEmpty
+          ? decisionLogSnapshot.docs.first.data()
+          : null;
+
+      String decisionLogText = decisionLogData != null
+          ? decisionLogData['conflictDetails'] ?? 'No decision log details'
+          : 'No decision log';
+
+      // Fetch related timetable
+      final timetableSnapshot = await FirebaseFirestore.instance
+          .collection('timetables')
+          .where('allocationId', isEqualTo: allocationId)
+          .limit(1)
+          .get();
+
+      final timetableData = timetableSnapshot.docs.isNotEmpty
+          ? timetableSnapshot.docs.first.data()
+          : null;
+
+      String timetableText = timetableData != null
+          ? timetableData['courseTitle'] ?? 'No timetable info'
+          : 'No timetable';
+
+      // Construct Allocation object
+      allocations.add(Allocation(
+        id: allocationId,
+        eventName: data['eventName'] ?? 'No Event Name',
+        description: data['description'] ?? '',
+        room: data['room'] ?? '',
+        status: data['status'] ?? '',
+        decisionLog: decisionLogText,
+        timetable: timetableText,
+      ));
+    }
+
+    yield allocations;
+  }
+
+  // Firestore streams for allocations and logs
   Stream<List<Map<String, dynamic>>> _fetchActiveAllocations() {
     return FirebaseFirestore.instance
         .collection('allocations')
@@ -65,10 +133,8 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
             }).toList());
   }
 
-  /// Fetch decision logs from Firestore and backend API
-  Stream<List<Map<String, dynamic>>> _fetchDecisionLogs() async* {
-    // 1. Firestore stream
-    final firestoreStream = FirebaseFirestore.instance
+  Stream<List<Map<String, dynamic>>> _fetchDecisionLogs() {
+    return FirebaseFirestore.instance
         .collection('decisionLogs')
         .snapshots()
         .map((snapshot) => snapshot.docs.map((doc) {
@@ -79,42 +145,8 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
                 'source': 'firebase',
               };
             }).toList());
-
-    // 2. Backend API fetch (one-time, not a stream)
-    Future<List<Map<String, dynamic>>> fetchBackendLogs() async {
-      try {
-        final uri = Uri.parse('http://localhost:3000/decision-logs');
-        final response = await http.get(uri);
-        if (response.statusCode == 200) {
-          final List<dynamic> data = json.decode(response.body);
-          return data
-              .map<Map<String, dynamic>>((e) => {
-                    ...e as Map<String, dynamic>,
-                    'source': 'backend',
-                  })
-              .toList();
-        }
-      } catch (e) {
-        print('Error fetching backend decision logs: $e');
-      }
-      return [];
-    }
-
-    // Combine both sources
-    await for (final firebaseLogs in firestoreStream) {
-      final backendLogs = await fetchBackendLogs();
-      // Merge and deduplicate by id if needed
-      final allLogs = <String, Map<String, dynamic>>{};
-      for (final log in [...firebaseLogs, ...backendLogs]) {
-        allLogs[log['id']?.toString() ??
-            log['allocationId']?.toString() ??
-            UniqueKey().toString()] = log;
-      }
-      yield allLogs.values.toList();
-    }
   }
 
-  /// Fetch performance metrics from Firestore
   Future<Map<String, dynamic>> _fetchPerformanceMetrics() async {
     try {
       final docSnapshot = await FirebaseFirestore.instance
@@ -126,18 +158,15 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
         return docSnapshot.data()!;
       } else {
         print('No performance metrics found.');
-        // Optionally show a message in the UI or skip rendering
         return {};
       }
     } catch (e, stack) {
       print('Error loading performance metrics: $e');
       print('Stack trace: $stack');
-      // You might want to handle this differently depending on your UI logic
       return {};
     }
   }
 
-  /// Fetch timeline events from Firestore
   Stream<List<Map<String, dynamic>>> _fetchTimelineEvents() {
     return FirebaseFirestore.instance
         .collection('timelineEvents')
@@ -151,43 +180,37 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
             }).toList());
   }
 
+  // Mock function for demo
   Future<PerformanceMetrics?> getPerformanceMetrics() async {
-    // Simulate async delay and a possible missing value
-    await Future.delayed(Duration(milliseconds: 500));
-    // return null; // Uncomment to simulate missing data
+    await Future.delayed(const Duration(milliseconds: 500));
     return PerformanceMetrics(1200, 256);
   }
 
-  // Place this method inside your _AIAllocationDashboardState class:
   Future<void> loadPerformanceMetrics() async {
     try {
-      // Simulating a call to fetch performance metrics
       final metrics = await getPerformanceMetrics();
 
       if (metrics == null) {
         print('No performance metrics found.');
-        // Optionally throw or handle gracefully
         return;
       }
 
-      // Use your metrics safely here
       print('Load Time: ${metrics.loadTime}');
       print('Memory Usage: ${metrics.memoryUsage}');
     } catch (e) {
       print('Error fetching performance metrics: $e');
-      // Show user-friendly message or fallback UI
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            Navigator.pop(context);
-            Navigator.pushNamed(context, '/admin-dashboard');
+            Navigator.popAndPushNamed(context, '/admin-dashboard');
           },
         ),
         title: const Text('AI Allocation Dashboard'),
@@ -235,7 +258,7 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
       body: SafeArea(
         child: Column(
           children: [
-            _buildFilterSection(),
+            // Removed _buildFilterSection() call
             Expanded(
               child: TabBarView(
                 controller: _tabController,
@@ -251,99 +274,30 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
       ),
       bottomNavigationBar: TabBar(
         controller: _tabController,
-        tabs: const [
+        tabs: [
           Tab(
-            icon: Icon(Icons.event_seat, color: ThemeAlias.AppTheme.primary600),
+            icon: Icon(Icons.event_seat, color: theme.colorScheme.primary),
             text: 'Allocations',
           ),
           Tab(
-            icon:
-                Icon(Icons.trending_up, color: ThemeAlias.AppTheme.primary600),
+            icon: Icon(Icons.trending_up, color: theme.colorScheme.primary),
             text: 'Performance',
           ),
           Tab(
-            icon: Icon(Icons.list_alt, color: ThemeAlias.AppTheme.primary600),
+            icon: Icon(Icons.list_alt, color: theme.colorScheme.primary),
             text: 'Logs',
           ),
         ],
-        labelColor: AppTheme.primary600,
-        unselectedLabelColor: ThemeAlias.AppTheme.neutral500,
-        indicatorColor: AppTheme.primary600,
-      ),
-    );
-  }
-
-  Widget _buildFilterSection() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: ThemeAlias.AppTheme.neutral50,
-        border: Border(
-          bottom: BorderSide(
-            color: ThemeAlias.AppTheme.neutral200,
-            width: 1,
-          ),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Filters',
-                style: ThemeAlias.AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600
-                ),
-              ),
-              IconButton(
-                icon: const CustomIcons.CustomIconWidget(
-                    iconName: 'help_outline',
-                    color: ThemeAlias.AppTheme.neutral500),
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text(
-                            'Filter data across all tabs by faculty, building, or timeframe.')),
-                  );
-                },
-                tooltip: 'About Filters',
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          AllocationFilterWidget(
-            selectedFaculty: _selectedFaculty,
-            selectedBuilding: _selectedBuilding,
-            selectedTimeframe: _selectedTimeframe,
-            facultyList: _faculties,
-            buildingList: _buildings,
-            timeframeList: _timeframes,
-            onFacultyChanged: (value) {
-              setState(() {
-                _selectedFaculty = value;
-              });
-            },
-            onBuildingChanged: (value) {
-              setState(() {
-                _selectedBuilding = value;
-              });
-            },
-            onTimeframeChanged: (value) {
-              setState(() {
-                _selectedTimeframe = value;
-              });
-            },
-          ),
-        ],
+        labelColor: theme.colorScheme.primary,
+        unselectedLabelColor: theme.colorScheme.onSurface.withOpacity(0.6),
+        indicatorColor: theme.colorScheme.primary,
       ),
     );
   }
 
   Widget _buildAllocationTab() {
-    return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: _fetchActiveAllocations(), // Uses Firebase Firestore
+    return StreamBuilder<List<Allocation>>(
+      stream: _fetchAllocationsWithDetails(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -369,9 +323,25 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: allocations.length,
                 itemBuilder: (context, index) {
+                  final allocation = allocations[index];
+                  final originalRoom = allocation.room;
+                  final divertedRoom = allocation.status == 'diverted'
+                      ? null // You may fetch resolvedVenue if needed
+                      : null;
+
                   return AllocationCardWidget(
-                    allocation: allocations[index],
-                    documentId: allocations[index]['id'],
+                    allocation: {
+                      'eventName': allocation.eventName,
+                      'description': allocation.description,
+                      'room': allocation.room,
+                      'status': allocation.status,
+                      'decisionLog': allocation.decisionLog,
+                      'timetable': allocation.timetable,
+                      'id': allocation.id,
+                    },
+                    documentId: allocation.id,
+                    originalRoom: originalRoom,
+                    divertedRoom: divertedRoom,
                   );
                 },
               ),
@@ -398,7 +368,7 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
                 ],
               ),
               const SizedBox(height: 8),
-              _buildTimelineSection(), // Timeline also uses Firebase
+              _buildTimelineSection(),
             ],
           ),
         );
@@ -427,7 +397,6 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
           physics: const NeverScrollableScrollPhysics(),
           itemCount: events.length,
           itemBuilder: (context, index) {
-            // Assuming 'id' is the timeSlotId for TimelineItemWidget
             return TimelineItemWidget(
               timeSlotId: events[index]['id'],
               isLast: index == events.length - 1,
@@ -440,33 +409,59 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
 
   Widget _buildPerformanceTab() {
     return FutureBuilder<Map<String, dynamic>>(
-      future: _fetchPerformanceMetrics(), // Uses Firebase Firestore
+      future: _fetchPerformanceMetrics(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
           print('PerformanceTab Firestore error: ${snapshot.error}');
-          return Center(child: Text('Error loading performance metrics: ${snapshot.error}'));
+          return Center(
+              child:
+                  Text('Error loading performance metrics: ${snapshot.error}'));
         }
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return const Center(child: Text('No performance metrics found.'));
         }
 
         final metrics = snapshot.data!;
+        // Example: allocationSpeed in seconds (add this field in Firestore if not present)
+        final allocationSpeed = metrics['allocationSpeed'] ?? 0;
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildPerformanceIndicatorItem('optimizationRate', 'Optimization Rate'),
+              // New section for allocation speed
+              Row(
+                children: [
+                  Icon(Icons.speed, color: ThemeAlias.AppTheme.primary600),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Allocation Speed',
+                    style: ThemeAlias.AppTheme.lightTheme.textTheme.titleMedium,
+                  ),
+                  const SizedBox(width: 16),
+                  Text(
+                    allocationSpeed > 0 ? '$allocationSpeed seconds' : 'N/A',
+                    style: ThemeAlias.AppTheme.lightTheme.textTheme.bodyLarge
+                        ?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
               const SizedBox(height: 16),
-              _buildPerformanceIndicatorItem('venueUtilization', 'Venue Utilization'),
+              _buildPerformanceIndicatorItem(
+                  'optimizationRate', 'Optimization Rate'),
               const SizedBox(height: 16),
-              _buildPerformanceIndicatorItem('conflictResolutionRate', 'Conflict Resolution'),
+              _buildPerformanceIndicatorItem(
+                  'venueUtilization', 'Venue Utilization'),
               const SizedBox(height: 16),
-              _buildPerformanceIndicatorItem('avgWalkingDistance', 'Avg. Walking Distance'),
+              _buildPerformanceIndicatorItem(
+                  'conflictResolutionRate', 'Conflict Resolution'),
+              const SizedBox(height: 16),
+              _buildPerformanceIndicatorItem(
+                  'avgWalkingDistance', 'Avg. Walking Distance'),
               const SizedBox(height: 24),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -529,8 +524,7 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
           ],
         ),
         const SizedBox(height: 8),
-        Text(label,
-            style: ThemeAlias.AppTheme.lightTheme.textTheme.bodyMedium),
+        Text(label, style: ThemeAlias.AppTheme.lightTheme.textTheme.bodyMedium),
       ],
     );
   }
@@ -539,9 +533,7 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
     return Row(
       children: [
         Expanded(
-          child: PerformanceIndicatorWidget(
-            documentId: documentId,
-          ),
+          child: PerformanceIndicatorWidget(documentId: documentId),
         ),
         IconButton(
           icon: const CustomIcons.CustomIconWidget(
@@ -561,20 +553,20 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
 
   Widget _buildDecisionLogTab() {
     return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: _fetchDecisionLogs(), // Uses both Firebase and backend API
+      stream: _fetchDecisionLogs(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
           print('DecisionLogTab Firestore error: ${snapshot.error}');
-          return Center(child: Text('Error loading decision logs: ${snapshot.error}'));
+          return Center(
+              child: Text('Error loading decision logs: ${snapshot.error}'));
         }
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return const Center(child: Text('No decision logs found.'));
         }
         final decisionLogs = snapshot.data!;
-        // Group by status for a simple bar chart
         final Map<String, int> statusCounts = {};
         for (final log in decisionLogs) {
           final status = log['status']?.toString() ?? 'unknown';
@@ -630,10 +622,21 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: decisionLogs.length,
                 itemBuilder: (context, index) {
+                  final decision = decisionLogs[index];
+                  // Defensive null checks for all expected String fields
+                  final safeDecision = {
+                    ...decision,
+                    'description': decision['description'] ?? '',
+                    'conflictDetails': decision['conflictDetails'] ?? '',
+                    'suggestedVenue': decision['suggestedVenue'] ?? '',
+                    'status': decision['status'] ?? '',
+                    'resolvedBy': decision['resolvedBy'] ?? '',
+                    // Add other fields as needed
+                  };
                   return DecisionLogItemWidget(
-                    decision: decisionLogs[index],
+                    decision: safeDecision,
                     onViewDetails: () {
-                      _showDecisionDetailsDialog(context, decisionLogs[index]);
+                      _showDecisionDetailsDialog(context, safeDecision);
                     },
                   );
                 },
@@ -716,11 +719,6 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
                 ),
                 const Divider(),
                 _buildHelpSection(
-                  'Filters',
-                  'Use the filters at the top of the screen to focus on specific faculties, buildings, or time periods. This affects the data displayed in all tabs.',
-                ),
-                const Divider(),
-                _buildHelpSection(
                   'Real-time Updates',
                   'Toggle the "Live" switch in the app bar to enable or disable real-time updates to the dashboard.',
                 ),
@@ -748,10 +746,8 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
         children: [
           Text(
             title,
-            style:
-                ThemeAlias.AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
+            style: ThemeAlias.AppTheme.lightTheme.textTheme.titleMedium
+                ?.copyWith(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 4),
           Text(
@@ -759,6 +755,150 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
             style: ThemeAlias.AppTheme.lightTheme.textTheme.bodyMedium,
           ),
         ],
+      ),
+    );
+  }
+}
+
+class PerformanceMetrics {
+  final int loadTime;
+  final int memoryUsage;
+
+  PerformanceMetrics(this.loadTime, this.memoryUsage);
+}
+
+class AllocationCardWidget extends StatelessWidget {
+  final Map<String, dynamic> allocation;
+  final String documentId;
+  final String? originalRoom;
+  final String? divertedRoom;
+
+  const AllocationCardWidget({
+    Key? key,
+    required this.allocation,
+    required this.documentId,
+    this.originalRoom,
+    this.divertedRoom,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDiverted = allocation['status'] == 'diverted';
+
+    return Card(
+      elevation: 2,
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        allocation['eventName'] ?? 'No Event Name',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: isDiverted
+                              ? Colors.red
+                              : theme.colorScheme.onPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        allocation['description'] ?? 'No Description',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurface,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      'Room: ${allocation['room'] ?? 'N/A'}',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    ),
+                    if (isDiverted) ...{
+                      const SizedBox(height: 4),
+                      Text(
+                        'Diverted to: ${allocation['resolvedVenue'] ?? 'N/A'}',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: Colors.orange,
+                        ),
+                      ),
+                    },
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildStatusChip(context, allocation['status']),
+                Text(
+                  'ID: ${allocation['id']}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurface.withOpacity(0.6),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusChip(BuildContext context, String? status) {
+    final theme = Theme.of(context);
+    Color chipColor;
+    Color textColor = Colors.white;
+
+    switch (status) {
+      case 'active':
+        chipColor = Colors.green;
+        break;
+      case 'inactive':
+        chipColor = Colors.red;
+        textColor = Colors.white;
+        break;
+      case 'pending':
+        chipColor = Colors.orange;
+        textColor = Colors.white;
+        break;
+      case 'diverted':
+        chipColor = Colors.blue;
+        break;
+      default:
+        chipColor = Colors.grey;
+        textColor = Colors.black;
+    }
+
+    return Chip(
+      label: Text(
+        status?.toUpperCase() ?? 'UNKNOWN',
+        style: TextStyle(
+          color: textColor,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      backgroundColor: chipColor,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
       ),
     );
   }

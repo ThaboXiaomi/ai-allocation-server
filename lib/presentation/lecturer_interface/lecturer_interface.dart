@@ -142,6 +142,8 @@ class _LecturerInterfaceState extends State<LecturerInterface>
     }
   }
 
+  // Add the missing method to show notifications panel
+
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<bool>(
@@ -313,60 +315,29 @@ class _LecturerInterfaceState extends State<LecturerInterface>
       return date != null && date.isAfter(today);
     }).toList();
 
-    return Column(
+    return TabBarView(
+      controller: _tabController,
       children: [
-        StreamBuilder<List<Map<String, dynamic>>>(
-          stream: _notificationsStream,
-          builder: (context, snapshot) {
-            if (snapshot.hasData && snapshot.data!.any((n) => !n["isRead"])) {
-              return _buildNotificationSummary(snapshot.data!);
-            }
-            return const SizedBox.shrink();
-          },
-        ),
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: AppTheme.neutral300.withOpacity(0.15),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
+        // Tab 0: Today's Schedule
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 18),
+            _buildQuickActionsRow(),
+            const SizedBox(height: 10),
+            Expanded(
+              child: _buildLecturesList(
+                todayLectures,
+                emptyText: "No lectures scheduled for today.",
               ),
-            ],
-          ),
-          child: TabBar(
-            controller: _tabController,
-            labelColor: AppTheme.primary700,
-            unselectedLabelColor: AppTheme.neutral400,
-            indicator: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              color: AppTheme.primary50,
             ),
-            tabs: const [
-              Tab(text: "Today's Schedule"),
-              Tab(text: "Upcoming Lectures"),
-            ],
-          ),
+          ],
         ),
-        Expanded(
-          child: TabBarView(
-            controller: _tabController,
-            children: [
-              _buildLecturesList(todayLectures,
-                  emptyText:
-                      "No lectures scheduled for today.\nAll schedules shown are assigned to you by the admin."),
-              _buildLecturesList(upcomingLectures,
-                  emptyText:
-                      "No upcoming lectures.\nAll schedules shown are assigned to you by the admin."),
-            ],
-          ),
+        // Tab 1: Upcoming Lectures
+        _buildLecturesList(
+          upcomingLectures,
+          emptyText: "No upcoming lectures scheduled.",
         ),
-        const SizedBox(height: 8),
-        _buildQuickActionsRow(),
-        const SizedBox(height: 16),
       ],
     );
   }
@@ -705,6 +676,21 @@ class _LecturerInterfaceState extends State<LecturerInterface>
     );
   }
 
+  Widget _buildMenuItem({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    Color? textColor,
+  }) {
+    return ListTile(
+      leading: Icon(icon, color: AppTheme.primary600),
+      title: Text(label,
+          style: AppTheme.lightTheme.textTheme.bodyLarge
+              ?.copyWith(color: textColor)),
+      onTap: onTap,
+    );
+  }
+
   Widget _buildSidebarMenu(BuildContext context, bool isDark) {
     final textColor = isDark ? Colors.white : AppTheme.primary900;
     final subTextColor = isDark ? Colors.white70 : AppTheme.neutral600;
@@ -735,7 +721,7 @@ class _LecturerInterfaceState extends State<LecturerInterface>
                                     fontWeight: FontWeight.bold,
                                     color: textColor)),
                         const SizedBox(height: 4),
-                        Text('lecturer@university.edu',
+                        Text('lecturer@allocation.edu',
                             style: AppTheme.lightTheme.textTheme.bodySmall
                                 ?.copyWith(color: subTextColor)),
                       ],
@@ -802,27 +788,15 @@ class _LecturerInterfaceState extends State<LecturerInterface>
                                   }
                                   final courses = snapshot.data!.docs;
                                   return ListView.builder(
-                                    shrinkWrap: true,
                                     itemCount: courses.length,
                                     itemBuilder: (context, index) {
                                       final course = courses[index].data()
                                           as Map<String, dynamic>;
-                                      final courseId = courses[index].id;
-                                      final courseTitle =
-                                          course['courseTitle'] ?? '';
-                                      final courseCode =
-                                          course['courseCode'] ?? '';
                                       return ListTile(
-                                        title:
-                                            Text('$courseCode - $courseTitle'),
+                                        title: Text(course['title'] ?? 'Course'),
                                         onTap: () {
-                                          Navigator.pop(
-                                              context); // Close dialog
-                                          Navigator.pushNamed(
-                                            context,
-                                            '/lecturer-attendance',
-                                            arguments: {'courseId': courseId},
-                                          );
+                                          Navigator.pop(context);
+                                          // Handle course selection
                                         },
                                       );
                                     },
@@ -854,15 +828,7 @@ class _LecturerInterfaceState extends State<LecturerInterface>
                     },
                     textColor: textColor,
                   ),
-                  _buildMenuItem(
-                    icon: Icons.map,
-                    label: 'Venue Map',
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.pushNamed(context, '/lecturer-venue-map');
-                    },
-                    textColor: textColor,
-                  ),
+                  // Venue Map removed
                   _buildMenuItem(
                     icon: Icons.report_problem,
                     label: 'Report Issue',
@@ -878,10 +844,8 @@ class _LecturerInterfaceState extends State<LecturerInterface>
                   const Divider(),
                   SwitchListTile(
                     secondary: Icon(
-                        _isDarkMode.value ? Icons.dark_mode : Icons.light_mode,
-                        color: textColor),
-                    title:
-                        Text('Dark Mode', style: TextStyle(color: textColor)),
+                        _isDarkMode.value ? Icons.dark_mode : Icons.light_mode),
+                    title: Text('Dark Mode', style: TextStyle(color: textColor)),
                     value: _isDarkMode.value,
                     onChanged: (val) => _isDarkMode.value = val,
                   ),
@@ -914,21 +878,6 @@ class _LecturerInterfaceState extends State<LecturerInterface>
     );
   }
 
-  Widget _buildMenuItem({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-    Color? textColor,
-  }) {
-    return ListTile(
-      leading: Icon(icon, color: AppTheme.primary600),
-      title: Text(label,
-          style: AppTheme.lightTheme.textTheme.bodyLarge
-              ?.copyWith(color: textColor)),
-      onTap: onTap,
-    );
-  }
-
   Future<List<Map<String, dynamic>>> _fetchStudents(
       List<dynamic> studentIds) async {
     if (studentIds.isEmpty) return [];
@@ -953,7 +902,7 @@ class _LecturerInterfaceState extends State<LecturerInterface>
             padding: EdgeInsets.zero,
             children: <Widget>[
               DrawerHeader(
-                decoration: BoxDecoration(color: Colors.blue),
+                decoration: const BoxDecoration(color: Colors.blue),
                 child: lecturer == null
                     ? const Center(
                         child: CircularProgressIndicator(
@@ -968,7 +917,7 @@ class _LecturerInterfaceState extends State<LecturerInterface>
                               CircleAvatar(
                                 radius: 28,
                                 backgroundColor: Colors.white,
-                                child: Icon(Icons.person,
+                                child: const Icon(Icons.person,
                                     size: 32, color: Colors.blue),
                               ),
                               const SizedBox(width: 16),
@@ -993,14 +942,14 @@ class _LecturerInterfaceState extends State<LecturerInterface>
                                       ),
                                     ),
                                   ],
-                                ),
-                              ),
+                                )
+                              )
                             ],
                           ),
                           const SizedBox(height: 12),
                           Row(
                             children: [
-                              Icon(Icons.school,
+                              const Icon(Icons.school,
                                   color: Colors.white70, size: 18),
                               const SizedBox(width: 6),
                               Text(
@@ -1013,7 +962,7 @@ class _LecturerInterfaceState extends State<LecturerInterface>
                           const SizedBox(height: 4),
                           Row(
                             children: [
-                              Icon(Icons.badge,
+                              const Icon(Icons.badge,
                                   color: Colors.white70, size: 18),
                               const SizedBox(width: 6),
                               Text(
@@ -1024,44 +973,38 @@ class _LecturerInterfaceState extends State<LecturerInterface>
                             ],
                           ),
                         ],
-                      ),
+                      )
               ),
               ListTile(
-                leading: Icon(Icons.check_circle_outline),
-                title: Text('Attendance'),
+                leading: const Icon(Icons.check_circle_outline),
+                title: const Text('Attendance'),
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.pushNamed(context, '/lecturer-attendance');
                 },
               ),
               ListTile(
-                leading: Icon(Icons.timer),
-                title: Text('Class Timer'),
+                leading: const Icon(Icons.timer),
+                title: const Text('Class Timer'),
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.pushNamed(context, '/lecturer-class-timer');
                 },
               ),
               ListTile(
-                leading: Icon(Icons.notifications),
-                title: Text('Notifications'),
+                leading: const Icon(Icons.notifications),
+                title: const Text('Notifications'),
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.pushNamed(context, '/lecturer-notifications');
                 },
               ),
-              ListTile(
-                leading: Icon(Icons.map),
-                title: Text('Venue Map'),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.pushNamed(context, '/lecturer-venue-map');
-                },
-              ),
+              const Divider(),
+
               const Divider(),
               ListTile(
-                leading: Icon(Icons.logout),
-                title: Text('Logout'),
+                leading: const Icon(Icons.logout),
+                title: const Text('Logout'),
                 onTap: () async {
                   Navigator.of(context).pop();
                   await FirebaseAuth.instance.signOut();

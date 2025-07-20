@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import '../../../theme/app_theme.dart';
-import '../../../widgets/custom_icon_widget.dart';
+import '../../../theme/app_theme.dart'; // Adjust path based on your project structure
+import '../../../widgets/custom_icon_widget.dart'; // Adjust path based on your project structure
 
 class DecisionLogItemWidget extends StatelessWidget {
   final Map<String, dynamic> decision;
@@ -15,56 +13,43 @@ class DecisionLogItemWidget extends StatelessWidget {
     required this.onViewDetails,
   }) : super(key: key);
 
-  /// Fetch decision details from Firestore
+  /// Fetch decision details from Firestore for the "View Details" action
   Future<Map<String, dynamic>> _fetchDecisionDetails(String decisionId) async {
     try {
       final docSnapshot = await FirebaseFirestore.instance
           .collection('decisionLogs')
           .doc(decisionId)
           .get();
-
-      if (docSnapshot.exists) {
-        return docSnapshot.data()!;
-      } else {
-        throw Exception('Decision not found');
-      }
+      return docSnapshot.exists ? docSnapshot.data()! : {};
     } catch (e) {
       print('Error fetching decision details: $e');
       return {};
     }
   }
 
-  /// Fetch additional data from Gemini API (optional)
-  Future<double> _fetchAIConfidenceFromGeminiAPI(String decisionId) async {
-    try {
-      // Replace with your Gemini API endpoint
-      final String apiUrl = 'https://api.gemini.com/ai-confidence/$decisionId';
-      final response = await http.get(Uri.parse(apiUrl));
-
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> responseData = json.decode(response.body);
-        return responseData['confidence'] as double;
-      } else {
-        throw Exception('Failed to fetch AI confidence from Gemini API');
-      }
-    } catch (e) {
-      print('Error fetching AI confidence from Gemini API: $e');
-      return 0.0;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final bool isManual = decision['status'] == 'Manual';
-    final Color statusColor =
-        isManual ? AppTheme.warning600 : AppTheme.success600;
+    // Safely extract fields with default values to handle nulls
+    final String allocationID = decision['allocationID'] ?? 'Unknown ID';
+    final String conflictDetails = decision['conflictDetails'] ?? 'No conflict details';
+    final String description = decision['description'] ?? 'No description';
+    final String resolvedBy = decision['resolvedBy'] ?? 'Unknown';
+    final String status = decision['status'] ?? 'Unknown';
+    final String suggestedVenue = decision['suggestedVenue'] ?? 'No suggested venue';
+    final Timestamp? timestampRaw = decision['timestamp'];
+    final String timestamp = timestampRaw != null
+        ? timestampRaw.toDate().toString()
+        : 'No timestamp';
+
+    // Determine status color based on status
+    final Color statusColor = status.toLowerCase() == 'resolved'
+        ? AppTheme.success600
+        : AppTheme.warning600;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
       elevation: 1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       child: InkWell(
         onTap: onViewDetails,
         borderRadius: BorderRadius.circular(8),
@@ -73,16 +58,17 @@ class DecisionLogItemWidget extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Header row with status icon and basic info
               Row(
                 children: [
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: statusColor.withAlpha(26),
+                      color: statusColor.withOpacity(0.1),
                       shape: BoxShape.circle,
                     ),
                     child: CustomIconWidget(
-                      iconName: isManual ? 'person' : 'auto_awesome',
+                      iconName: 'info',
                       color: statusColor,
                       size: 20,
                     ),
@@ -93,7 +79,7 @@ class DecisionLogItemWidget extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          decision['action'],
+                          'Allocation: $allocationID',
                           style: const TextStyle(
                             fontWeight: FontWeight.w600,
                             fontSize: 16,
@@ -101,7 +87,7 @@ class DecisionLogItemWidget extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          decision['timestamp'],
+                          timestamp,
                           style: const TextStyle(
                             color: AppTheme.neutral500,
                             fontSize: 12,
@@ -111,14 +97,13 @@ class DecisionLogItemWidget extends StatelessWidget {
                     ),
                   ),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: statusColor.withAlpha(26),
+                      color: statusColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Text(
-                      decision['status'],
+                      status,
                       style: TextStyle(
                         color: statusColor,
                         fontWeight: FontWeight.w500,
@@ -129,47 +114,43 @@ class DecisionLogItemWidget extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 12),
+              // Description
               Text(
-                decision['description'],
+                description,
                 style: const TextStyle(
                   color: AppTheme.neutral700,
                   fontSize: 14,
                 ),
               ),
-              if (!isManual) ...[
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    const Text(
-                      'AI Confidence:',
-                      style: TextStyle(
-                        color: AppTheme.neutral600,
-                        fontSize: 12,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: LinearProgressIndicator(
-                        value: decision['aiConfidence'],
-                        backgroundColor: AppTheme.neutral200,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          _getConfidenceColor(decision['aiConfidence']),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${(decision['aiConfidence'] * 100).toInt()}%',
-                      style: TextStyle(
-                        color: _getConfidenceColor(decision['aiConfidence']),
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
               const SizedBox(height: 12),
+              // Resolved By
+              Text(
+                'Resolved By: $resolvedBy',
+                style: const TextStyle(
+                  color: AppTheme.neutral600,
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Conflict Details
+              Text(
+                'Conflict Details: $conflictDetails',
+                style: const TextStyle(
+                  color: AppTheme.neutral600,
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Suggested Venue
+              Text(
+                'Suggested Venue: $suggestedVenue',
+                style: const TextStyle(
+                  color: AppTheme.neutral600,
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(height: 12),
+              // View Details button
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton.icon(
@@ -180,22 +161,12 @@ class DecisionLogItemWidget extends StatelessWidget {
                   ),
                   label: const Text('View Details'),
                   onPressed: () async {
-                    // Fetch decision details from Firestore
-                    final decisionDetails =
-                        await _fetchDecisionDetails(decision['id']);
+                    final decisionDetails = await _fetchDecisionDetails(decision['id'] ?? '');
                     print('Decision Details: $decisionDetails');
-
-                    // Optionally fetch AI confidence from Gemini API
-                    final aiConfidence =
-                        await _fetchAIConfidenceFromGeminiAPI(decision['id']);
-                    print('AI Confidence: $aiConfidence');
-
-                    // Trigger the onViewDetails callback
                     onViewDetails();
                   },
                   style: TextButton.styleFrom(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   ),
                 ),
               ),
@@ -204,17 +175,5 @@ class DecisionLogItemWidget extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  Color _getConfidenceColor(double confidence) {
-    if (confidence >= 0.8) {
-      return AppTheme.success600;
-    } else if (confidence >= 0.6) {
-      return AppTheme.primary600;
-    } else if (confidence >= 0.4) {
-      return AppTheme.warning600;
-    } else {
-      return AppTheme.error600;
-    }
   }
 }
