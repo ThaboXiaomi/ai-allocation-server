@@ -28,8 +28,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
   List<Map<String, dynamic>> _roomStatus = [];
   Map<String, dynamic> _analyticsData = {};
   bool _isLoading = true;
-  String _adminName = 'Admin'; // Default name
-  String _adminEmail = 'admin@university.edu'; // Default email
+  String _adminName = 'Admin';
+  String _adminEmail = 'admin@university.edu';
   final ValueNotifier<bool> _isDarkMode = ValueNotifier(false);
 
   @override
@@ -42,7 +42,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
     if (mounted) setState(() => _isLoading = true);
 
     try {
-      // ─── Notifications ─────────────────────
       final notificationsSnapshot = await FirebaseFirestore.instance
           .collection('notifications')
           .orderBy('time', descending: true)
@@ -51,7 +50,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
         return {'id': doc.id, ...doc.data()};
       }).toList();
 
-      // ─── Recent Timetables ─────────────────
       final timetablesSnapshot = await FirebaseFirestore.instance
           .collection('timetables')
           .orderBy('date', descending: true)
@@ -61,40 +59,31 @@ class _AdminDashboardState extends State<AdminDashboard> {
         return {'id': doc.id, ...doc.data()};
       }).toList();
 
-      // ─── Faculties ──────────────────────────
       final facultiesSnapshot =
           await FirebaseFirestore.instance.collection('faculties').get();
       _faculties = facultiesSnapshot.docs.map((doc) {
         return {'id': doc.id, ...doc.data()};
       }).toList();
 
-      // ─── Room Statuses ──────────────────────
       final roomStatusSnapshot =
           await FirebaseFirestore.instance.collection('rooms').get();
       _roomStatus = roomStatusSnapshot.docs.map((doc) => doc.data()).toList();
-      // ─── Analytics Data ─────────────────────
+
       final analyticsSnapshot = await FirebaseFirestore.instance
           .collection('analytics')
           .doc('data')
           .get();
-
-      // Grab the raw map (or empty map if doc missing)
       _analyticsData = analyticsSnapshot.data() ?? {};
-
-      // Ensure there's always a `weeklyData` list
       final rawWeekly = _analyticsData['weeklyData'];
       if (rawWeekly is List) {
-        // Coerce each element into Map<String, dynamic>
         _analyticsData['weeklyData'] = rawWeekly
             .whereType<Map>()
             .map((m) => Map<String, dynamic>.from(m))
             .toList();
       } else {
-        // Missing or wrong type: default to empty list
         _analyticsData['weeklyData'] = <Map<String, dynamic>>[];
       }
 
-      // --- Fetch Admin Details ---
       final currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser != null) {
         try {
@@ -110,14 +99,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 currentUser.email ??
                 'admin@university.edu';
           } else {
-            // Fallback to FirebaseAuth info if user document doesn't exist
             _adminName = currentUser.displayName ?? 'Admin';
             _adminEmail = currentUser.email ?? 'admin@university.edu';
           }
         } catch (e) {
-          // Catch error specific to fetching user details
           debugPrint("Error fetching admin user details: $e");
-          // Keep default/FirebaseAuth info if Firestore fetch fails
           _adminName = currentUser.displayName ?? 'Admin';
           _adminEmail = currentUser.email ?? 'admin@university.edu';
         }
@@ -147,40 +133,43 @@ class _AdminDashboardState extends State<AdminDashboard> {
           home: Scaffold(
             appBar: AppBar(
               title: const Text('Admin Dashboard'),
+              elevation: 2,
               actions: [
                 IconButton(
-                  icon: const CustomIconWidget(
-                    iconName: 'notifications',
+                  icon: const Icon(
+                    Icons.notifications_outlined,
                     color: Colors.white,
+                    size: 28,
                   ),
                   onPressed: () => _showNotificationsPanel(context),
+                  tooltip: 'Notifications',
                 ),
                 IconButton(
-                  icon: const CustomIconWidget(
-                    iconName: 'settings',
+                  icon: const Icon(
+                    Icons.settings_outlined,
                     color: Colors.white,
+                    size: 28,
                   ),
                   onPressed: () {
-                    // Navigate to the same admin profile settings page
                     Navigator.pushNamed(context, '/admin-profile-settings');
                   },
+                  tooltip: 'Settings',
                 ),
               ],
             ),
-            drawer:
-                _buildSidebarMenu(context, isDark), // <-- MOVED TO LEFT SIDE
+            drawer: _buildSidebarMenu(context, isDark),
             body: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : SafeArea(
                     child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(16.0),
+                      padding: const EdgeInsets.all(20.0),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _buildWelcomeSection(),
-                          const SizedBox(height: 24),
+                          const SizedBox(height: 32),
                           _buildNotificationSummary(),
-                          const SizedBox(height: 24),
+                          const SizedBox(height: 32),
                           _buildDashboardGrid(),
                         ],
                       ),
@@ -199,32 +188,39 @@ class _AdminDashboardState extends State<AdminDashboard> {
       child: SafeArea(
         child: Column(
           children: [
-            // Facebook-style header
             Container(
               color: AppTheme.primary50,
-              padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+              padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
               child: Row(
                 children: [
                   CircleAvatar(
-                    radius: 28,
+                    radius: 30,
                     backgroundColor: AppTheme.primary300,
-                    child: const Icon(Icons.admin_panel_settings,
-                        size: 32, color: Colors.white),
+                    child: const Icon(
+                      Icons.admin_panel_settings_outlined,
+                      size: 36,
+                      color: Colors.white,
+                    ),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(_adminName, // Use fetched admin name
-                            style: AppTheme.lightTheme.textTheme.titleLarge
-                                ?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: textColor)),
-                        const SizedBox(height: 4),
-                        Text(_adminEmail, // Use fetched admin email
-                            style: AppTheme.lightTheme.textTheme.bodySmall
-                                ?.copyWith(color: subTextColor)),
+                        Text(
+                          _adminName,
+                          style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: textColor,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          _adminEmail,
+                          style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+                            color: subTextColor,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -232,12 +228,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
               ),
             ),
             const Divider(height: 1),
-            // Menu items
             Expanded(
               child: ListView(
                 children: [
                   _buildMenuItem(
-                    icon: Icons.dashboard,
+                    icon: Icons.dashboard_outlined,
                     label: 'Dashboard',
                     onTap: () {
                       if (Navigator.of(context).canPop()) {
@@ -247,7 +242,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     textColor: textColor,
                   ),
                   _buildMenuItem(
-                    icon: Icons.calendar_today,
+                    icon: Icons.calendar_today_outlined,
                     label: 'Timetable Management',
                     onTap: () {
                       Navigator.pop(context);
@@ -266,7 +261,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     textColor: textColor,
                   ),
                   _buildMenuItem(
-                    icon: Icons.school,
+                    icon: Icons.school_outlined,
                     label: 'Faculty Management',
                     onTap: () {
                       Navigator.pop(context);
@@ -275,7 +270,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     textColor: textColor,
                   ),
                   _buildMenuItem(
-                    icon: Icons.meeting_room,
+                    icon: Icons.meeting_room_outlined,
                     label: 'Room Allocation',
                     onTap: () {
                       Navigator.pop(context);
@@ -284,7 +279,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     textColor: textColor,
                   ),
                   _buildMenuItem(
-                    icon: Icons.insights,
+                    icon: Icons.insights_outlined,
                     label: 'System Analytics',
                     onTap: () {
                       Navigator.pop(context);
@@ -293,54 +288,63 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     textColor: textColor,
                   ),
                   _buildMenuItem(
-                    icon:
-                        Icons.settings_applications, // Or Icons.manage_accounts
+                    icon: Icons.manage_accounts_outlined,
                     label: 'Profile Settings',
                     onTap: () {
-                      Navigator.pop(context); // Close drawer
-                      // TODO: Implement navigation to a dedicated admin profile settings page
+                      Navigator.pop(context);
                       Navigator.pushNamed(context, '/admin-profile-settings');
                     },
                     textColor: textColor,
                   ),
                   const Divider(),
-                  // Dark mode toggle
                   SwitchListTile(
                     secondary: Icon(
-                        _isDarkMode.value ? Icons.dark_mode : Icons.light_mode,
-                        color: textColor),
-                    title:
-                        Text('Dark Mode', style: TextStyle(color: textColor)),
+                      _isDarkMode.value
+                          ? Icons.dark_mode_outlined
+                          : Icons.light_mode_outlined,
+                      color: textColor,
+                      size: 26,
+                    ),
+                    title: Text(
+                      'Dark Mode',
+                      style: TextStyle(color: textColor),
+                    ),
                     value: _isDarkMode.value,
                     onChanged: (val) => _isDarkMode.value = val,
                   ),
                   const Divider(),
-                  // Logout
                   ListTile(
-                    leading: const Icon(Icons.logout, color: Colors.red),
-                    title: const Text('Logout',
-                        style: TextStyle(color: Colors.red)),
+                    leading: const Icon(
+                      Icons.logout_outlined,
+                      color: Colors.red,
+                      size: 26,
+                    ),
+                    title: const Text(
+                      'Logout',
+                      style: TextStyle(color: Colors.red),
+                    ),
                     onTap: () {
-                      Navigator.of(context).pop(); // Close drawer
+                      Navigator.of(context).pop();
                       FirebaseAuth.instance.signOut().then((_) {
-                        Navigator.of(context).push(
+                        Navigator.of(context).pushReplacement(
                           MaterialPageRoute(
-                            builder: (_) =>
-                                const AdminAuthScreen(), // Replace with your login page
+                            builder: (_) => const AdminAuthScreen(),
                           ),
-                        ); // Redirect to login
+                        );
                       });
                     },
                   ),
                 ],
               ),
             ),
-            // Facebook-style footer
             Padding(
-              padding: const EdgeInsets.all(12.0),
+              padding: const EdgeInsets.all(16.0),
               child: Text(
                 '© 2025 Lecturer Room Allocator',
-                style: TextStyle(color: subTextColor),
+                style: TextStyle(
+                  color: subTextColor,
+                  fontSize: 12,
+                ),
               ),
             ),
           ],
@@ -356,11 +360,21 @@ class _AdminDashboardState extends State<AdminDashboard> {
     Color? textColor,
   }) {
     return ListTile(
-      leading: Icon(icon, color: AppTheme.primary600),
-      title: Text(label,
-          style: AppTheme.lightTheme.textTheme.bodyLarge
-              ?.copyWith(color: textColor)),
+      leading: Icon(
+        icon,
+        color: AppTheme.primary600,
+        size: 26,
+      ),
+      title: Text(
+        label,
+        style: AppTheme.lightTheme.textTheme.bodyLarge?.copyWith(
+          color: textColor,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
       onTap: onTap,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      hoverColor: AppTheme.primary50.withOpacity(0.1),
     );
   }
 
@@ -368,12 +382,19 @@ class _AdminDashboardState extends State<AdminDashboard> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Welcome, Admin',
-            style: AppTheme.lightTheme.textTheme.displaySmall),
+        Text(
+          'Welcome, $_adminName',
+          style: AppTheme.lightTheme.textTheme.displaySmall?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: AppTheme.primary900,
+          ),
+        ),
         const SizedBox(height: 8),
         Text(
           'Manage your AI-powered lecture room allocation system',
-          style: AppTheme.lightTheme.textTheme.bodyMedium,
+          style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+            color: AppTheme.neutral600,
+          ),
         ),
       ],
     );
@@ -385,22 +406,32 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
     return InkWell(
       onTap: () => _showNotificationsPanel(context),
+      borderRadius: BorderRadius.circular(12),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: unreadCount > 0 ? AppTheme.primary50 : AppTheme.neutral50,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: unreadCount > 0 ? AppTheme.primary300 : AppTheme.neutral300,
+            width: 1.5,
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Row(
           children: [
-            CustomIconWidget(
-              iconName: 'notifications',
-              color:
-                  unreadCount > 0 ? AppTheme.primary600 : AppTheme.neutral600,
-              size: 24,
+            Icon(
+              unreadCount > 0
+                  ? Icons.notifications_active_outlined
+                  : Icons.notifications_none_outlined,
+              color: unreadCount > 0 ? AppTheme.primary600 : AppTheme.neutral600,
+              size: 28,
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -409,10 +440,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 children: [
                   Text(
                     unreadCount > 0
-                        ? 'You have $unreadCount unread notifications'
-                        : 'No new notifications',
+                        ? '$unreadCount Unread Notification${unreadCount > 1 ? 's' : ''}'
+                        : 'No New Notifications',
                     style: AppTheme.lightTheme.textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.w600,
                       color: unreadCount > 0
                           ? AppTheme.primary700
                           : AppTheme.neutral700,
@@ -421,16 +452,17 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   if (unreadCount > 0)
                     Text(
                       'Tap to view all notifications',
-                      style: AppTheme.lightTheme.textTheme.bodySmall,
+                      style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                        color: AppTheme.neutral600,
+                      ),
                     ),
                 ],
               ),
             ),
-            CustomIconWidget(
-              iconName: 'arrow_forward_ios',
-              color:
-                  unreadCount > 0 ? AppTheme.primary600 : AppTheme.neutral600,
-              size: 16,
+            Icon(
+              Icons.arrow_forward_ios_rounded,
+              color: unreadCount > 0 ? AppTheme.primary600 : AppTheme.neutral600,
+              size: 18,
             ),
           ],
         ),
@@ -447,45 +479,54 @@ class _AdminDashboardState extends State<AdminDashboard> {
           collectionName: 'timetables',
           onTap: () {
             Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => BlocProvider(
-                    create: (_) => TimetableManagementBloc(
-                      firestore: FirebaseFirestore.instance,
-                    ),
-                    child:
-                        TimetableManagementPage(), // You need to create this page
+              context,
+              MaterialPageRoute(
+                builder: (_) => BlocProvider(
+                  create: (_) => TimetableManagementBloc(
+                    firestore: FirebaseFirestore.instance,
                   ),
-                ));
+                  child: TimetableManagementPage(),
+                ),
+              ),
+            );
           },
           child: _recentTimetables.isEmpty
               ? const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8.0),
-                  child: Text("No recent timetables."),
+                  padding: EdgeInsets.symmetric(vertical: 12.0),
+                  child: Text(
+                    "No recent timetables.",
+                    style: TextStyle(color: AppTheme.neutral600),
+                  ),
                 )
               : Column(
                   children: _recentTimetables.map((timetable) {
                     return ListTile(
-                      leading: const CustomIconWidget(
-                          iconName: 'calendar_today',
-                          color: AppTheme.neutral600),
-                      title: Text(timetable['name'] ?? 'Unknown Timetable'),
-                      subtitle:
-                          Text('Date: ${timetable['date'] ?? 'Unknown Date'}'),
+                      leading: const Icon(
+                        Icons.calendar_view_day_outlined,
+                        color: AppTheme.neutral600,
+                        size: 24,
+                      ),
+                      title: Text(
+                        timetable['name'] ?? 'Unknown Timetable',
+                        style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      subtitle: Text(
+                        'Date: ${timetable['date'] ?? 'Unknown Date'}',
+                        style: AppTheme.lightTheme.textTheme.bodySmall,
+                      ),
                     );
                   }).toList(),
                 ),
         ),
-        const SizedBox(height: 16),
-        // Display Faculties if available
+        const SizedBox(height: 20),
         if (_faculties.isNotEmpty) ...[
           DashboardCardWidget(
             title: 'Faculty Management',
-            icon:
-                'account_circle', // Placeholder for 'school'. Add 'school' to CustomIconWidget for a better icon.
+            icon: 'school',
             collectionName: 'faculties',
-            onTap: () => Navigator.pushNamed(
-                context, '/faculty-management'), // Example route
+            onTap: () => Navigator.pushNamed(context, '/faculty-management'),
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
                   .collection('faculties')
@@ -501,6 +542,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 }
                 final faculties = snapshot.data!.docs;
                 return ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
                   itemCount: faculties.length,
                   itemBuilder: (context, index) {
                     final doc = faculties[index];
@@ -514,19 +557,20 @@ class _AdminDashboardState extends State<AdminDashboard> {
               },
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
         ],
         DashboardCardWidget(
           title: 'Room Allocation Status',
-          icon:
-              'home', // Placeholder for 'meeting_room'. Add 'meeting_room' or 'room' to CustomIconWidget.
-          collectionName: 'rooms', // Used for the count
-          onTap: () => Navigator.pushNamed(
-              context, '/venue-management'), // Example route
+          icon: 'meeting_room',
+          collectionName: 'rooms',
+          onTap: () => Navigator.pushNamed(context, '/venue-management'),
           child: _roomStatus.isEmpty
               ? const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8.0),
-                  child: Text("No room statuses available."),
+                  padding: EdgeInsets.symmetric(vertical: 12.0),
+                  child: Text(
+                    "No room statuses available.",
+                    style: TextStyle(color: AppTheme.neutral600),
+                  ),
                 )
               : Column(
                   children: _roomStatus
@@ -534,7 +578,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       .toList(),
                 ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
         DashboardCardWidget(
           title: 'System Analytics',
           icon: 'insights',
@@ -543,8 +587,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
           child: (_analyticsData['weeklyData'] as List<Map<String, dynamic>>)
                   .isEmpty
               ? const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8.0),
-                  child: Text("No weekly analytics data available."),
+                  padding: EdgeInsets.symmetric(vertical: 12.0),
+                  child: Text(
+                    "No weekly analytics data available.",
+                    style: TextStyle(color: AppTheme.neutral600),
+                  ),
                 )
               : AnalyticsChartWidget(
                   weeklyData: _analyticsData['weeklyData']
@@ -560,7 +607,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) {
         return DraggableScrollableSheet(
@@ -572,15 +619,34 @@ class _AdminDashboardState extends State<AdminDashboard> {
             return Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Text('Notifications',
-                      style: AppTheme.lightTheme.textTheme.headlineSmall),
+                  padding: const EdgeInsets.all(20.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Notifications',
+                        style:
+                            AppTheme.lightTheme.textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded, size: 24),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
                 ),
                 Expanded(
                   child: _notifications.isEmpty
                       ? Center(
-                          child: Text('No notifications yet.',
-                              style: AppTheme.lightTheme.textTheme.bodyMedium),
+                          child: Text(
+                            'No notifications yet.',
+                            style:
+                                AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+                              color: AppTheme.neutral600,
+                            ),
+                          ),
                         )
                       : ListView.separated(
                           controller: scrollController,
@@ -592,8 +658,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                             return NotificationItemWidget(
                               notification: _notifications[index],
                               onTap: () async {
-                                // Mark as read in Firestore (NotificationItemWidget handles this internally now)
-                                // For UI update, we might need to refetch or update local state if not handled by stream
+                                // NotificationItemWidget handles marking as read
                               },
                             );
                           },
