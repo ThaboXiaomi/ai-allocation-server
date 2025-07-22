@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../theme/app_theme.dart'; // Adjust path based on your project structure
-import '../../../widgets/custom_icon_widget.dart'; // Adjust path based on your project structure
 
 class DecisionLogItemWidget extends StatelessWidget {
   final Map<String, dynamic> decision;
@@ -24,6 +23,30 @@ class DecisionLogItemWidget extends StatelessWidget {
     } catch (e) {
       print('Error fetching decision details: $e');
       return {};
+    }
+  }
+
+  /// Delete a decision log from Firestore
+  Future<void> _deleteDecisionLog(BuildContext context, String decisionId) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('decisionLogs')
+          .doc(decisionId)
+          .delete();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Decision log deleted successfully'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      print('Error deleting decision log: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error deleting decision log: $e'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
     }
   }
 
@@ -67,8 +90,8 @@ class DecisionLogItemWidget extends StatelessWidget {
                       color: statusColor.withOpacity(0.1),
                       shape: BoxShape.circle,
                     ),
-                    child: CustomIconWidget(
-                      iconName: 'info',
+                    child: Icon(
+                      Icons.info,
                       color: statusColor,
                       size: 20,
                     ),
@@ -150,24 +173,38 @@ class DecisionLogItemWidget extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 12),
-              // View Details button
+              // Action buttons
               Align(
                 alignment: Alignment.centerRight,
-                child: TextButton.icon(
-                  icon: const CustomIconWidget(
-                    iconName: 'visibility',
-                    color: AppTheme.primary600,
-                    size: 16,
-                  ),
-                  label: const Text('View Details'),
-                  onPressed: () async {
-                    final decisionDetails = await _fetchDecisionDetails(decision['id'] ?? '');
-                    print('Decision Details: $decisionDetails');
-                    onViewDetails();
-                  },
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextButton.icon(
+                      icon: const Icon(
+                        Icons.visibility,
+                        color: AppTheme.primary600,
+                        size: 16,
+                      ),
+                      label: const Text('View Details'),
+                      onPressed: () async {
+                        final decisionDetails = await _fetchDecisionDetails(decision['id'] ?? '');
+                        print('Decision Details: $decisionDetails');
+                        onViewDetails();
+                      },
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(
+                        Icons.delete,
+                        color: AppTheme.error600,
+                        size: 16,
+                      ),
+                      tooltip: 'Delete Decision Log',
+                      onPressed: () => _deleteDecisionLog(context, decision['id'] ?? ''),
+                    ),
+                  ],
                 ),
               ),
             ],

@@ -8,7 +8,7 @@ import './widgets/allocation_chart_widget.dart';
 import './widgets/decision_log_item_widget.dart';
 import './widgets/performance_indicator_widget.dart';
 import './widgets/timeline_item_widget.dart';
-import '../../services/allocation_initializer.dart'; // Add this import
+import '../../services/allocation_initializer.dart';
 
 // Moved Allocation class to the top level
 class Allocation {
@@ -122,7 +122,6 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
   }
 
   // Firestore streams for allocations and logs
-
   Stream<List<Map<String, dynamic>>> _fetchDecisionLogs() {
     return FirebaseFirestore.instance
         .collection('decisionLogs')
@@ -226,7 +225,6 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
       body: SafeArea(
         child: Column(
           children: [
-            // Removed _buildFilterSection() call
             Expanded(
               child: TabBarView(
                 controller: _tabController,
@@ -283,8 +281,21 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Active & Recent Allocations",
-                  style: ThemeAlias.AppTheme.lightTheme.textTheme.titleLarge),
+              Row(
+                children: [
+                  const Icon(Icons.assignment, color: Colors.blue),
+                  const SizedBox(width: 8),
+                  Text("Active & Recent Allocations",
+                      style:
+                          ThemeAlias.AppTheme.lightTheme.textTheme.titleLarge),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.add_circle, color: Colors.green),
+                    tooltip: 'Add Allocation',
+                    onPressed: () => _showAddAllocationDialog(context),
+                  ),
+                ],
+              ),
               const SizedBox(height: 8),
               ListView.builder(
                 shrinkWrap: true,
@@ -292,7 +303,6 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
                 itemCount: allocations.length,
                 itemBuilder: (context, index) {
                   final allocation = allocations[index];
-                  // Defensive null checks for all expected fields
                   final safeAllocation = {
                     ...allocation,
                     'eventName': allocation['eventName'] ?? '',
@@ -309,9 +319,94 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
                     'timetable': allocation['timetable'] ?? '',
                     'time': allocation['time'] ?? '',
                   };
-                  return AllocationCardWidget(
-                    allocation: safeAllocation,
-                    documentId: allocation['id'],
+                  return Card(
+                    margin: const EdgeInsets.symmetric(vertical: 8),
+                    elevation: 2,
+                    child: ListTile(
+                      leading: Icon(
+                        safeAllocation['status'] == 'resolved'
+                            ? Icons.check_circle
+                            : Icons.pending_actions,
+                        color: safeAllocation['status'] == 'resolved'
+                            ? Colors.green
+                            : Colors.orange,
+                      ),
+                      title: Text(safeAllocation['eventName']),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.meeting_room, size: 16),
+                              const SizedBox(width: 4),
+                              Text('Room: ${safeAllocation['room']}'),
+                            ],
+                          ),
+                          Row(
+                            children: [
+                              const Icon(Icons.location_on, size: 16),
+                              const SizedBox(width: 4),
+                              Text('Venue: ${safeAllocation['resolvedVenue']}'),
+                            ],
+                          ),
+                          if ((safeAllocation['decisionLog'] as String)
+                              .isNotEmpty)
+                            Row(
+                              children: [
+                                const Icon(Icons.report_problem,
+                                    size: 16, color: Colors.red),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    safeAllocation['decisionLog'],
+                                    style: const TextStyle(color: Colors.red),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          Row(
+                            children: [
+                              const Icon(Icons.people, size: 16),
+                              const SizedBox(width: 4),
+                              Text(
+                                  'Students: ${safeAllocation['studentCount']}'),
+                            ],
+                          ),
+                          Row(
+                            children: [
+                              const Icon(Icons.person, size: 16),
+                              const SizedBox(width: 4),
+                              Text('Lecturer: ${safeAllocation['lecturer']}'),
+                            ],
+                          ),
+                          Row(
+                            children: [
+                              const Icon(Icons.schedule, size: 16),
+                              const SizedBox(width: 4),
+                              Text('Time: ${safeAllocation['time']}'),
+                            ],
+                          ),
+                        ],
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.edit, color: Colors.blue),
+                            tooltip: 'Edit Allocation',
+                            onPressed: () =>
+                                _showEditAllocationDialog(context, allocation),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.red),
+                            tooltip: 'Delete Allocation',
+                            onPressed: () =>
+                                _deleteAllocation(allocation['id']),
+                          ),
+                          const Icon(Icons.arrow_forward_ios, size: 16),
+                        ],
+                      ),
+                    ),
                   );
                 },
               ),
@@ -409,8 +504,8 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
   }
 
   Widget _buildPerformanceTab() {
-    return FutureBuilder<Map<String, dynamic>>(
-      future: _fetchPerformanceMetrics(),
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _fetchAllocationsWithFullDetails(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -425,44 +520,121 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
           return const Center(child: Text('No performance metrics found.'));
         }
 
-        final metrics = snapshot.data!;
-        // Example: allocationSpeed in seconds (add this field in Firestore if not present)
-        final allocationSpeed = metrics['allocationSpeed'] ?? 0;
+        final allocations = snapshot.data!;
+        // Aggregate metrics from allocations
+        final totalAllocations = allocations.length;
+        final resolvedCount =
+            allocations.where((a) => a['status'] == 'resolved').length;
+        final pendingCount =
+            allocations.where((a) => a['status'] == 'Pending').length;
+        final divertedCount =
+            allocations.where((a) => a['status'] == 'diverted').length;
+
+        final totalStudents = allocations.fold<int>(
+            0, (sum, a) => sum + (a['studentCount'] as num? ?? 0).toInt());
+        final totalVenueCapacity = allocations.fold<int>(
+            0, (sum, a) => sum + (a['venueCapacity'] as num? ?? 0).toInt());
+
+        final avgUtilization = totalVenueCapacity > 0
+            ? (totalStudents / totalVenueCapacity) * 100
+            : 0;
+
+        final avgWalkingDistance = allocations.isNotEmpty
+            ? allocations
+                    .map((a) => a['distanceFactor'] ?? 0)
+                    .reduce((a, b) => a + b) /
+                allocations.length
+            : 0;
+
+        final avgConfidenceScore = allocations.isNotEmpty
+            ? allocations
+                    .map((a) => (a['confidenceScore'] ?? 0.0) as double)
+                    .reduce((a, b) => a + b) /
+                allocations.length
+            : 0.0;
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // New section for allocation speed
               Row(
                 children: [
-                  Icon(Icons.speed, color: ThemeAlias.AppTheme.primary600),
+                  Icon(Icons.trending_up,
+                      color: ThemeAlias.AppTheme.primary600),
                   const SizedBox(width: 8),
                   Text(
-                    'Allocation Speed',
-                    style: ThemeAlias.AppTheme.lightTheme.textTheme.titleMedium,
+                    'Performance Overview',
+                    style: ThemeAlias.AppTheme.lightTheme.textTheme.titleLarge,
                   ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.green),
+                  const SizedBox(width: 8),
+                  Text('Resolved Allocations: $resolvedCount'),
                   const SizedBox(width: 16),
+                  Icon(Icons.pending_actions, color: Colors.orange),
+                  const SizedBox(width: 8),
+                  Text('Pending: $pendingCount'),
+                  const SizedBox(width: 16),
+                  Icon(Icons.sync_problem, color: Colors.red),
+                  const SizedBox(width: 8),
+                  Text('Diverted: $divertedCount'),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Icon(Icons.people, color: ThemeAlias.AppTheme.primary600),
+                  const SizedBox(width: 8),
+                  Text('Total Students: $totalStudents'),
+                  const SizedBox(width: 16),
+                  Icon(Icons.meeting_room,
+                      color: ThemeAlias.AppTheme.primary600),
+                  const SizedBox(width: 8),
+                  Text('Total Venue Capacity: $totalVenueCapacity'),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Icon(Icons.bar_chart, color: ThemeAlias.AppTheme.primary600),
+                  const SizedBox(width: 8),
                   Text(
-                    allocationSpeed > 0 ? '$allocationSpeed seconds' : 'N/A',
+                    'Venue Utilization: ${avgUtilization.toStringAsFixed(1)}%',
                     style: ThemeAlias.AppTheme.lightTheme.textTheme.bodyLarge
                         ?.copyWith(fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
               const SizedBox(height: 16),
-              _buildPerformanceIndicatorItem(
-                  'optimizationRate', 'Optimization Rate'),
+              Row(
+                children: [
+                  Icon(Icons.directions_walk,
+                      color: ThemeAlias.AppTheme.primary600),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Avg. Walking Distance: ${avgWalkingDistance.toStringAsFixed(2)}',
+                    style: ThemeAlias.AppTheme.lightTheme.textTheme.bodyLarge
+                        ?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
               const SizedBox(height: 16),
-              _buildPerformanceIndicatorItem(
-                  'venueUtilization', 'Venue Utilization'),
-              const SizedBox(height: 16),
-              _buildPerformanceIndicatorItem(
-                  'conflictResolutionRate', 'Conflict Resolution'),
-              const SizedBox(height: 16),
-              _buildPerformanceIndicatorItem(
-                  'avgWalkingDistance', 'Avg. Walking Distance'),
+              Row(
+                children: [
+                  Icon(Icons.verified, color: ThemeAlias.AppTheme.primary600),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Avg. Confidence Score: ${avgConfidenceScore.toStringAsFixed(2)}',
+                    style: ThemeAlias.AppTheme.lightTheme.textTheme.bodyLarge
+                        ?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
               const SizedBox(height: 24),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -758,5 +930,173 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
         ],
       ),
     );
+  }
+
+  // Add Allocation Dialog
+  void _showAddAllocationDialog(BuildContext context) {
+    final _formKey = GlobalKey<FormState>();
+    String eventName = '';
+    String room = '';
+    String status = 'Pending';
+    String lecturer = '';
+    String time = '';
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Add Allocation'),
+          content: Form(
+            key: _formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  TextFormField(
+                    decoration: const InputDecoration(labelText: 'Event Name'),
+                    onChanged: (val) => eventName = val,
+                    validator: (val) =>
+                        val == null || val.isEmpty ? 'Required' : null,
+                  ),
+                  TextFormField(
+                    decoration: const InputDecoration(labelText: 'Room'),
+                    onChanged: (val) => room = val,
+                    validator: (val) =>
+                        val == null || val.isEmpty ? 'Required' : null,
+                  ),
+                  TextFormField(
+                    decoration: const InputDecoration(labelText: 'Lecturer'),
+                    onChanged: (val) => lecturer = val,
+                  ),
+                  TextFormField(
+                    decoration: const InputDecoration(labelText: 'Time'),
+                    onChanged: (val) => time = val,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (_formKey.currentState?.validate() ?? false) {
+                  await FirebaseFirestore.instance
+                      .collection('allocations')
+                      .add({
+                    'eventName': eventName,
+                    'room': room,
+                    'status': status,
+                    'lecturer': lecturer,
+                    'time': time,
+                  });
+                  Navigator.pop(context);
+                  setState(() {});
+                }
+              },
+              child: const Text('Add'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Edit Allocation Dialog
+  void _showEditAllocationDialog(
+      BuildContext context, Map<String, dynamic> allocation) {
+    final _formKey = GlobalKey<FormState>();
+    String eventName = allocation['eventName'] ?? '';
+    String room = allocation['room'] ?? '';
+    String status = allocation['status'] ?? 'Pending';
+    String lecturer = allocation['lecturer'] ?? '';
+    String time = allocation['time'] ?? '';
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Edit Allocation'),
+          content: Form(
+            key: _formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  TextFormField(
+                    initialValue: eventName,
+                    decoration: const InputDecoration(labelText: 'Event Name'),
+                    onChanged: (val) => eventName = val,
+                    validator: (val) =>
+                        val == null || val.isEmpty ? 'Required' : null,
+                  ),
+                  TextFormField(
+                    initialValue: room,
+                    decoration: const InputDecoration(labelText: 'Room'),
+                    onChanged: (val) => room = val,
+                    validator: (val) =>
+                        val == null || val.isEmpty ? 'Required' : null,
+                  ),
+                  TextFormField(
+                    initialValue: lecturer,
+                    decoration: const InputDecoration(labelText: 'Lecturer'),
+                    onChanged: (val) => lecturer = val,
+                  ),
+                  TextFormField(
+                    initialValue: time,
+                    decoration: const InputDecoration(labelText: 'Time'),
+                    onChanged: (val) => time = val,
+                  ),
+                  DropdownButtonFormField<String>(
+                    value: status,
+                    decoration: const InputDecoration(labelText: 'Status'),
+                    items: ['Pending', 'resolved', 'diverted']
+                        .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                        .toList(),
+                    onChanged: (val) => status = val ?? status,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (_formKey.currentState?.validate() ?? false) {
+                  await FirebaseFirestore.instance
+                      .collection('allocations')
+                      .doc(allocation['id'])
+                      .update({
+                    'eventName': eventName,
+                    'room': room,
+                    'status': status,
+                    'lecturer': lecturer,
+                    'time': time,
+                  });
+                  Navigator.pop(context);
+                  setState(() {});
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Delete Allocation
+  Future<void> _deleteAllocation(String allocationId) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('allocations')
+          .doc(allocationId)
+          .delete();
+    } catch (e) {
+      print('Error deleting allocation: $e');
+    }
   }
 }
