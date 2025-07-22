@@ -5,10 +5,10 @@ import '../../theme/app_theme.dart' as ThemeAlias;
 import '../../widgets/custom_icon_widget.dart' as CustomIcons;
 import './widgets/allocation_card_widget.dart';
 import './widgets/allocation_chart_widget.dart';
-import './widgets/allocation_filter_widget.dart';
 import './widgets/decision_log_item_widget.dart';
 import './widgets/performance_indicator_widget.dart';
 import './widgets/timeline_item_widget.dart';
+import '../../services/allocation_initializer.dart'; // Add this import
 
 // Moved Allocation class to the top level
 class Allocation {
@@ -18,7 +18,7 @@ class Allocation {
   final String room;
   final String status;
   final String decisionLog; // from decisionLogs
-  final String timetable;   // from timetables
+  final String timetable; // from timetables
 
   Allocation({
     required this.id,
@@ -41,19 +41,23 @@ class AIAllocationDashboard extends StatefulWidget {
 class _AIAllocationDashboardState extends State<AIAllocationDashboard>
     with TickerProviderStateMixin {
   late TabController _tabController;
-  String _selectedFaculty = 'All';
-  String _selectedBuilding = 'All';
-  String _selectedTimeframe = 'Today';
   bool _isRealTimeUpdates = true;
-
-  final List<String> _faculties = ['All'];
-  final List<String> _buildings = ['All'];
-  final List<String> _timeframes = ['Today', 'This Week', 'This Month'];
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+
+    // Initialize allocations collection if empty
+    _initializeAllocationsIfNeeded();
+  }
+
+  Future<void> _initializeAllocationsIfNeeded() async {
+    final allocationsSnapshot =
+        await FirebaseFirestore.instance.collection('allocations').get();
+    if (allocationsSnapshot.docs.isEmpty) {
+      await initializeAllocationsCollection();
+    }
   }
 
   @override
@@ -63,10 +67,9 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
   }
 
   // Fetch allocations with related decisionLog and timetable
-  Stream<List<Allocation>> _fetchAllocationsWithDetails() async* {
-    final allocationsSnapshot = await FirebaseFirestore.instance
-        .collection('allocations')
-        .get();
+  Future<List<Allocation>> _fetchAllocationsWithDetails() async {
+    final allocationsSnapshot =
+        await FirebaseFirestore.instance.collection('allocations').get();
 
     List<Allocation> allocations = [];
 
@@ -115,23 +118,10 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
       ));
     }
 
-    yield allocations;
+    return allocations;
   }
 
   // Firestore streams for allocations and logs
-  Stream<List<Map<String, dynamic>>> _fetchActiveAllocations() {
-    return FirebaseFirestore.instance
-        .collection('allocations')
-        .snapshots()
-        .map((snapshot) => snapshot.docs.map((doc) {
-              final data = doc.data();
-              return {
-                ...data,
-                'id': doc.id,
-                'source': 'firebase',
-              };
-            }).toList());
-  }
 
   Stream<List<Map<String, dynamic>>> _fetchDecisionLogs() {
     return FirebaseFirestore.instance
@@ -178,28 +168,6 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
                 'id': doc.id,
               };
             }).toList());
-  }
-
-  // Mock function for demo
-  Future<PerformanceMetrics?> getPerformanceMetrics() async {
-    await Future.delayed(const Duration(milliseconds: 500));
-    return PerformanceMetrics(1200, 256);
-  }
-
-  Future<void> loadPerformanceMetrics() async {
-    try {
-      final metrics = await getPerformanceMetrics();
-
-      if (metrics == null) {
-        print('No performance metrics found.');
-        return;
-      }
-
-      print('Load Time: ${metrics.loadTime}');
-      print('Memory Usage: ${metrics.memoryUsage}');
-    } catch (e) {
-      print('Error fetching performance metrics: $e');
-    }
   }
 
   @override
@@ -296,8 +264,8 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
   }
 
   Widget _buildAllocationTab() {
-    return StreamBuilder<List<Allocation>>(
-      stream: _fetchAllocationsWithDetails(),
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _fetchAllocationsWithFullDetails(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -324,56 +292,89 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
                 itemCount: allocations.length,
                 itemBuilder: (context, index) {
                   final allocation = allocations[index];
-                  final originalRoom = allocation.room;
-                  final divertedRoom = allocation.status == 'diverted'
-                      ? null // You may fetch resolvedVenue if needed
-                      : null;
-
+                  // Defensive null checks for all expected fields
+                  final safeAllocation = {
+                    ...allocation,
+                    'eventName': allocation['eventName'] ?? '',
+                    'room': allocation['room'] ?? '',
+                    'status': allocation['status'] ?? '',
+                    'decisionLog': allocation['decisionLog'] ?? '',
+                    'resolvedVenue': allocation['resolvedVenue'] ?? '',
+                    'confidenceScore': allocation['confidenceScore'] ?? 0,
+                    'description': allocation['description'] ?? '',
+                    'distanceFactor': allocation['distanceFactor'] ?? 0,
+                    'faculty': allocation['faculty'] ?? '',
+                    'lecturer': allocation['lecturer'] ?? '',
+                    'studentCount': allocation['studentCount'] ?? 0,
+                    'timetable': allocation['timetable'] ?? '',
+                    'time': allocation['time'] ?? '',
+                  };
                   return AllocationCardWidget(
-                    allocation: {
-                      'eventName': allocation.eventName,
-                      'description': allocation.description,
-                      'room': allocation.room,
-                      'status': allocation.status,
-                      'decisionLog': allocation.decisionLog,
-                      'timetable': allocation.timetable,
-                      'id': allocation.id,
-                    },
-                    documentId: allocation.id,
-                    originalRoom: originalRoom,
-                    divertedRoom: divertedRoom,
+                    allocation: safeAllocation,
+                    documentId: allocation['id'],
                   );
                 },
               ),
               const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text("Daily Timeline",
-                      style:
-                          ThemeAlias.AppTheme.lightTheme.textTheme.titleLarge),
-                  IconButton(
-                    icon: const CustomIcons.CustomIconWidget(
-                        iconName: 'access_time',
-                        color: ThemeAlias.AppTheme.neutral500),
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text(
-                                'Timeline shows scheduled events for the selected day.')),
-                      );
-                    },
-                    tooltip: 'Timeline Information',
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
               _buildTimelineSection(),
             ],
           ),
         );
       },
     );
+  }
+
+  // Add this new method to fetch all required fields for AllocationCardWidget
+  Future<List<Map<String, dynamic>>> _fetchAllocationsWithFullDetails() async {
+    final allocationsSnapshot =
+        await FirebaseFirestore.instance.collection('allocations').get();
+
+    List<Map<String, dynamic>> allocations = [];
+
+    for (var doc in allocationsSnapshot.docs) {
+      final data = doc.data();
+      final allocationId = doc.id;
+
+      // Fetch related decisionLog
+      final decisionLogSnapshot = await FirebaseFirestore.instance
+          .collection('decisionLogs')
+          .where('allocationId', isEqualTo: allocationId)
+          .limit(1)
+          .get();
+      final decisionLogData = decisionLogSnapshot.docs.isNotEmpty
+          ? decisionLogSnapshot.docs.first.data()
+          : {};
+
+      // Fetch related timetable
+      final timetableSnapshot = await FirebaseFirestore.instance
+          .collection('timetables')
+          .where('allocationId', isEqualTo: allocationId)
+          .limit(1)
+          .get();
+      final timetableData = timetableSnapshot.docs.isNotEmpty
+          ? timetableSnapshot.docs.first.data()
+          : {};
+
+      // Merge all relevant fields into one map
+      allocations.add({
+        'id': allocationId,
+        'course': timetableData['courseTitle'] ?? data['eventName'] ?? '',
+        'lecturer': timetableData['lecturer'] ?? '',
+        'faculty': timetableData['faculty'] ?? '',
+        'time': timetableData['time'] ?? '',
+        'room': data['room'] ?? '',
+        'resolvedVenue': decisionLogData['suggestedVenue'] ?? '',
+        'studentCount': timetableData['studentCount'] ?? 0,
+        'venueCapacity': timetableData['venueCapacity'] ?? 0,
+        'distanceFactor': decisionLogData['distanceFactor'] ?? 0,
+        'reason': decisionLogData['conflictDetails'] ?? '',
+        'confidenceScore': decisionLogData['confidenceScore'] ?? 0.0,
+        'status': data['status'] ?? '',
+        // Add other fields as needed
+      });
+    }
+
+    return allocations;
   }
 
   Widget _buildTimelineSection() {
@@ -755,150 +756,6 @@ class _AIAllocationDashboardState extends State<AIAllocationDashboard>
             style: ThemeAlias.AppTheme.lightTheme.textTheme.bodyMedium,
           ),
         ],
-      ),
-    );
-  }
-}
-
-class PerformanceMetrics {
-  final int loadTime;
-  final int memoryUsage;
-
-  PerformanceMetrics(this.loadTime, this.memoryUsage);
-}
-
-class AllocationCardWidget extends StatelessWidget {
-  final Map<String, dynamic> allocation;
-  final String documentId;
-  final String? originalRoom;
-  final String? divertedRoom;
-
-  const AllocationCardWidget({
-    Key? key,
-    required this.allocation,
-    required this.documentId,
-    this.originalRoom,
-    this.divertedRoom,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDiverted = allocation['status'] == 'diverted';
-
-    return Card(
-      elevation: 2,
-      margin: const EdgeInsets.only(bottom: 16),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        allocation['eventName'] ?? 'No Event Name',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: isDiverted
-                              ? Colors.red
-                              : theme.colorScheme.onPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        allocation['description'] ?? 'No Description',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurface,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      'Room: ${allocation['room'] ?? 'N/A'}',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurface,
-                      ),
-                    ),
-                    if (isDiverted) ...{
-                      const SizedBox(height: 4),
-                      Text(
-                        'Diverted to: ${allocation['resolvedVenue'] ?? 'N/A'}',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: Colors.orange,
-                        ),
-                      ),
-                    },
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildStatusChip(context, allocation['status']),
-                Text(
-                  'ID: ${allocation['id']}',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurface.withOpacity(0.6),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatusChip(BuildContext context, String? status) {
-    final theme = Theme.of(context);
-    Color chipColor;
-    Color textColor = Colors.white;
-
-    switch (status) {
-      case 'active':
-        chipColor = Colors.green;
-        break;
-      case 'inactive':
-        chipColor = Colors.red;
-        textColor = Colors.white;
-        break;
-      case 'pending':
-        chipColor = Colors.orange;
-        textColor = Colors.white;
-        break;
-      case 'diverted':
-        chipColor = Colors.blue;
-        break;
-      default:
-        chipColor = Colors.grey;
-        textColor = Colors.black;
-    }
-
-    return Chip(
-      label: Text(
-        status?.toUpperCase() ?? 'UNKNOWN',
-        style: TextStyle(
-          color: textColor,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      backgroundColor: chipColor,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
       ),
     );
   }

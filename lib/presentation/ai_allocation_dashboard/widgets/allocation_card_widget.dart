@@ -22,8 +22,21 @@ class AllocationCardWidget extends StatelessWidget {
       });
       // Optionally, show a success message
     } catch (e) {
-      // Handle errors (e.g., show a snackbar)
       print('Error updating status: $e');
+    }
+  }
+
+  // Fetch room name from lecture_rooms collection
+  Future<String> _getRoomName(String roomId) async {
+    try {
+      DocumentSnapshot roomDoc = await firestore.collection('lecture_rooms').doc(roomId).get();
+      if (roomDoc.exists) {
+        return roomDoc.get('roomName') ?? 'Unknown Room';
+      }
+      return 'Unknown Room';
+    } catch (e) {
+      print('Error fetching room name: $e');
+      return 'Unknown Room';
     }
   }
 
@@ -54,8 +67,7 @@ class AllocationCardWidget extends StatelessWidget {
             Row(
               children: [
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: _getStatusColor(status).withAlpha(26),
                     borderRadius: BorderRadius.circular(4),
@@ -85,8 +97,7 @@ class AllocationCardWidget extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: AppTheme.neutral100,
                     borderRadius: BorderRadius.circular(4),
@@ -127,37 +138,62 @@ class AllocationCardWidget extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildInfoColumn(
-                    'Original Venue',
-                    allocation['originalVenue'],
-                    'meeting_room',
-                    AppTheme.neutral600,
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primary100,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const CustomIconWidget(
-                    iconName: 'arrow_forward',
-                    color: AppTheme.primary600,
-                    size: 16,
-                  ),
-                ),
-                Expanded(
-                  child: _buildInfoColumn(
-                    'New Venue',
-                    allocation['newVenue'],
-                    'meeting_room',
-                    AppTheme.primary600,
-                  ),
-                ),
-              ],
+            // Tabular form for rooms
+            FutureBuilder<String>(
+              future: _getRoomName(allocation['room']),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return const Text('Error loading room name');
+                }
+                final originalRoomName = snapshot.data ?? 'Unknown Room';
+                final resolvedRoomName = allocation['resolvedVenue'] ?? 'N/A';
+
+                return DataTable(
+                  columns: const [
+                    DataColumn(label: Text('Originally Allocated Room')),
+                    DataColumn(label: Text('Resolved Conflict Room')),
+                  ],
+                  rows: [
+                    DataRow(cells: [
+                      DataCell(
+                        Row(
+                          children: [
+                            CustomIconWidget(
+                              iconName: 'meeting_room',
+                              color: AppTheme.neutral600,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              originalRoomName,
+                              style: const TextStyle(color: AppTheme.neutral600),
+                            ),
+                          ],
+                        ),
+                      ),
+                      DataCell(
+                        Row(
+                          children: [
+                            CustomIconWidget(
+                              iconName: 'meeting_room',
+                              color: AppTheme.primary600,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              resolvedRoomName,
+                              style: const TextStyle(color: AppTheme.primary600),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ]),
+                  ],
+                );
+              },
             ),
             const SizedBox(height: 12),
             Row(
@@ -223,7 +259,7 @@ class AllocationCardWidget extends StatelessWidget {
                       ),
                       label: const Text('Edit'),
                       onPressed: () {
-                        _updateStatus('In Progress'); // Example action
+                        _updateStatus('In Progress');
                       },
                     ),
                   ),
@@ -237,7 +273,7 @@ class AllocationCardWidget extends StatelessWidget {
                       ),
                       label: const Text('Approve'),
                       onPressed: () {
-                        _updateStatus('Completed'); // Example action
+                        _updateStatus('Completed');
                       },
                     ),
                   ),
