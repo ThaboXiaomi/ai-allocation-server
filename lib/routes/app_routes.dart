@@ -101,7 +101,8 @@ class AppRoutes {
         }
         if (snap.hasError || !snap.hasData || !snap.data!.exists) {
           // Log error and sign out
-          print('Error fetching user role: ${snap.error}');
+          // In a production app, consider using a dedicated logging package.
+          debugPrint('Error fetching user role or user document does not exist: ${snap.error}');
           FirebaseAuth.instance.signOut();
           return const PortalSelectionScreen();
         }

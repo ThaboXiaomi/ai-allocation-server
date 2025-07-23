@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../../routes/app_routes.dart';
 
 import '../../theme/app_theme.dart';
 import '../../widgets/custom_icon_widget.dart';
@@ -850,11 +851,13 @@ class _LecturerInterfaceState extends State<LecturerInterface>
                   const Divider(),
                   ListTile(
                     leading: const Icon(Icons.logout, color: Colors.red),
-                    title: const Text('Logout', style: TextStyle(color: Colors.red)),
-                    onTap: () {
-                      Navigator.pop(context);
-                      FirebaseAuth.instance.signOut();
-                      Navigator.pushReplacementNamed(context, '/lecturer-login');
+                    title: const Text('Logout',
+                        style: TextStyle(color: Colors.red)),
+                    onTap: () async {
+                      Navigator.of(context).pop();
+                      await FirebaseAuth.instance.signOut();
+                      Navigator.of(context).pushNamedAndRemoveUntil(
+                          AppRoutes.portalSelection, (route) => false);
                     },
                   ),
                 ],
@@ -942,9 +945,10 @@ class _LecturerInterfaceState extends State<LecturerInterface>
                 leading: const Icon(Icons.logout),
                 title: const Text('Logout'),
                 onTap: () async {
-                  Navigator.pop(context);
+                  Navigator.of(context).pop();
                   await FirebaseAuth.instance.signOut();
-                  Navigator.pushReplacementNamed(context, '/lecturer-login');
+                  Navigator.of(context).pushNamedAndRemoveUntil(
+                      AppRoutes.portalSelection, (route) => false);
                 },
               ),
             ],

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lecture_room_allocator/presentation/admin_login/admin_auth_screen.dart';
+import '../../routes/app_routes.dart';
 
 import '../../theme/app_theme.dart';
 import '../../widgets/custom_icon_widget.dart';
@@ -30,7 +31,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
   bool _isLoading = true;
   String _adminName = 'Admin';
   String _adminEmail = 'admin@university.edu';
-  final ValueNotifier<bool> _isDarkMode = ValueNotifier(false);
 
   @override
   void initState() {
@@ -119,18 +119,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   @override
   void dispose() {
-    _isDarkMode.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<bool>(
-      valueListenable: _isDarkMode,
-      builder: (context, isDark, _) {
-        return MaterialApp(
-          theme: isDark ? AppTheme.darkTheme : AppTheme.lightTheme,
-          home: Scaffold(
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return WillPopScope(
+      onWillPop: () async => false, // Prevents popping back to login screen
+      child: Scaffold(
             appBar: AppBar(
               title: const Text('Admin Dashboard'),
               elevation: 2,
@@ -175,9 +172,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       ),
                     ),
                   ),
-          ),
-        );
-      },
+      ),
     );
   }
 
@@ -298,19 +293,17 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   ),
                   const Divider(),
                   SwitchListTile(
-                    secondary: Icon(
-                      _isDarkMode.value
-                          ? Icons.dark_mode_outlined
-                          : Icons.light_mode_outlined,
-                      color: textColor,
-                      size: 26,
-                    ),
+                    secondary:
+                        Icon(isDark ? Icons.dark_mode : Icons.light_mode),
                     title: Text(
                       'Dark Mode',
                       style: TextStyle(color: textColor),
                     ),
-                    value: _isDarkMode.value,
-                    onChanged: (val) => _isDarkMode.value = val,
+                    value: isDark,
+                    onChanged: (val) {
+                      // This should be handled by a global theme provider
+                      // to correctly switch themes across the app.
+                    },
                   ),
                   const Divider(),
                   ListTile(
@@ -323,15 +316,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       'Logout',
                       style: TextStyle(color: Colors.red),
                     ),
-                    onTap: () {
+                    onTap: () async {
                       Navigator.of(context).pop();
-                      FirebaseAuth.instance.signOut().then((_) {
-                        Navigator.of(context).pushReplacement(
-                          MaterialPageRoute(
-                            builder: (_) => const AdminAuthScreen(),
-                          ),
-                        );
-                      });
+                      await FirebaseAuth.instance.signOut();
+                      Navigator.of(context).pushNamedAndRemoveUntil(
+                          AppRoutes.portalSelection, (route) => false);
                     },
                   ),
                 ],

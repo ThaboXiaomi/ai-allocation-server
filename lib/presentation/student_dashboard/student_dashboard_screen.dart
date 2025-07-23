@@ -6,6 +6,7 @@ import 'widgets/quick_action_button_widget.dart';
 import 'widgets/lecture_card_widget.dart';
 import 'widgets/attendance_stats_widget.dart';
 import 'widgets/notification_card_widget.dart';
+import '../../routes/app_routes.dart';
 
 class StudentDashboardScreen extends StatefulWidget {
   const StudentDashboardScreen({Key? key}) : super(key: key);
@@ -38,11 +39,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
       });
       return false;
     }
-    // Prevent pop if there's nothing to pop (avoid navigator.dart _history.isNotEmpty error)
-    if (!Navigator.of(context).canPop()) {
-      return false;
-    }
-    return true;
+    // If on the first tab, prevent popping back to the login/portal screen.
+    return false;
   }
 
   Future<String?> _fetchStudentName() async {
@@ -262,14 +260,25 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen>
                     padding: const EdgeInsets.all(24),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text(
+                      children: [
+                        const Text(
                           'Settings',
                           style: TextStyle(
                               fontSize: 28, fontWeight: FontWeight.bold),
                         ),
-                        SizedBox(height: 24),
-                        // Add your settings widgets here
+                        const SizedBox(height: 24),
+                        ListTile(
+                          leading: const Icon(Icons.logout, color: Colors.red),
+                          title: const Text('Logout',
+                              style: TextStyle(color: Colors.red)),
+                          onTap: () async {
+                            await FirebaseAuth.instance.signOut();
+                            Navigator.of(context).pushNamedAndRemoveUntil(
+                              AppRoutes.portalSelection,
+                              (Route<dynamic> route) => false,
+                            );
+                          },
+                        ),
                       ],
                     ),
                   ),
