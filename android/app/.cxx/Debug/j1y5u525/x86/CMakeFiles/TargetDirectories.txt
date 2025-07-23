@@ -1,2 +1,0 @@
-D:/PC USER/Documents/School/Final Year Project/lecture_room_allocator/android/app/.cxx/Debug/j1y5u525/x86/CMakeFiles/edit_cache.dir
-D:/PC USER/Documents/School/Final Year Project/lecture_room_allocator/android/app/.cxx/Debug/j1y5u525/x86/CMakeFiles/rebuild_cache.dir

@@ -83,7 +83,7 @@ class MyApp extends StatelessWidget {
             );
           },
           navigatorKey: NavigatorService.navigatorKey,
-          debugShowCheckedModeBanner: false,
+          //debugShowCheckedModeBanner: false,
           routes: AppRoutes.routes,
           onGenerateRoute: AppRoutes.onGenerateRoute,
           onUnknownRoute: (settings) {
