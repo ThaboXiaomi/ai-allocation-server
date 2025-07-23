@@ -33,34 +33,55 @@ class _AttendanceStatsWidgetState extends State<AttendanceStatsWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: _attendanceStream,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError) {
-          return const Center(child: Text('Error loading attendance data.'));
-        }
-        if (!snapshot.hasData || snapshot.data?.data() == null) {
-          return const Center(child: Text('No attendance data available.'));
-        }
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Attendance Statistics'),
+        backgroundColor: AppTheme.primary600,
+        foregroundColor: AppTheme.primary50,
+        elevation: 0,
+      ),
+      body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+        stream: _attendanceStream,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(
+              child: Text(
+                'Error loading attendance data: ${snapshot.error}',
+                style: AppTheme.lightTheme.textTheme.bodyLarge?.copyWith(
+                  color: AppTheme.error600,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            );
+          }
+          if (!snapshot.hasData || snapshot.data?.data() == null) {
+            return const Center(
+              child: Text(
+                'No attendance data available for this course.',
+                style: TextStyle(fontSize: 16),
+              ),
+            );
+          }
 
-        final data = snapshot.data!.data()!;
-        final attendanceData =
-            List<Map<String, dynamic>>.from(data['attendanceData']);
-        final totalStudents = data['totalStudents'] ?? 0;
+          final data = snapshot.data!.data()!;
+          final attendanceData =
+              List<Map<String, dynamic>>.from(data['attendanceData'] ?? []);
+          final totalStudents = data['totalStudents'] as int? ?? 0;
 
-        return Column(
-          children: [
-            _buildElegantAttendanceCard(attendanceData, totalStudents),
-            const SizedBox(height: 24),
-            Expanded(
-              child: _buildCheckedInStudentsList(widget.courseId),
+          return SingleChildScrollView(
+            child: Column(
+              children: [
+                _buildElegantAttendanceCard(attendanceData, totalStudents),
+                const SizedBox(height: 24),
+                _buildCheckedInStudentsList(widget.courseId),
+              ],
             ),
-          ],
-        );
-      },
+          );
+        },
+      ),
     );
   }
 
@@ -189,9 +210,9 @@ class _AttendanceStatsWidgetState extends State<AttendanceStatsWidget> {
                           children: [
                             ...attendanceData
                                 .map((item) => _buildLegendItem(
-                                      status: item["status"],
-                                      count: item["count"],
-                                      color: Color(int.parse(item["color"])),
+                                      status: item["status"] ?? 'Unknown',
+                                      count: item["count"] ?? 0,
+                                      color: Color(int.parse(item["color"] ?? '0xFF000000')),
                                     ))
                                 .toList(),
                             const SizedBox(height: 10),
@@ -296,11 +317,11 @@ class _AttendanceStatsWidgetState extends State<AttendanceStatsWidget> {
       List<Map<String, dynamic>> attendanceData, int totalStudents) {
     return attendanceData.map((item) {
       final double percentage =
-          totalStudents > 0 ? (item["count"] / totalStudents) * 100 : 0;
+          totalStudents > 0 ? (item["count"] ?? 0) / totalStudents * 100 : 0;
 
       return PieChartSectionData(
-        color: Color(int.parse(item["color"])),
-        value: item["count"].toDouble(),
+        color: Color(int.parse(item["color"] ?? '0xFF000000')),
+        value: (item["count"] ?? 0).toDouble(),
         title: percentage >= 10 ? '${percentage.toInt()}%' : '',
         radius: 50,
         titleStyle: const TextStyle(
@@ -354,7 +375,7 @@ class _AttendanceStatsWidgetState extends State<AttendanceStatsWidget> {
       List<Map<String, dynamic>> attendanceData, int totalStudents) {
     final int presentCount = attendanceData.firstWhere(
         (item) => item["status"] == "Present",
-        orElse: () => {"count": 0})["count"];
+        orElse: () => {"count": 0})["count"] ?? 0;
 
     return totalStudents > 0 ? presentCount / totalStudents : 0;
   }
@@ -370,46 +391,58 @@ class _AttendanceStatsWidgetState extends State<AttendanceStatsWidget> {
   }
 
   Widget _buildCheckedInStudentsList(String courseId) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('student_check_ins')
-          .where('courseId', isEqualTo: courseId)
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError) {
-          return const Center(child: Text('Error loading checked-in students.'));
-        }
-        final docs = snapshot.data?.docs ?? [];
-        if (docs.isEmpty) {
-          return const Center(child: Text('No students have checked in yet.'));
-        }
-        return ListView.separated(
-          itemCount: docs.length,
-          separatorBuilder: (_, __) => const Divider(height: 1),
-          itemBuilder: (context, index) {
-            final student = docs[index].data() as Map<String, dynamic>;
-            return ListTile(
-              leading: const Icon(Icons.person, color: Colors.blue),
-              title: Text(student['studentName'] ?? 'Unknown Student'),
-              subtitle: Text('ID: ${student['studentId'] ?? ''}'),
-              trailing: Text(
-                student['checkInTime'] != null
-                    ? (student['checkInTime'] is Timestamp
-                        ? (student['checkInTime'] as Timestamp)
-                            .toDate()
-                            .toLocal()
-                            .toString()
-                        : student['checkInTime'].toString())
-                    : '',
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
+    return Container(
+      height: 300, // Fixed height to prevent overflow
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('student_check_ins')
+            .where('courseId', isEqualTo: courseId)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(
+              child: Text(
+                'Error loading checked-in students: ${snapshot.error}',
+                style: AppTheme.lightTheme.textTheme.bodyLarge?.copyWith(
+                  color: AppTheme.error600,
+                ),
+                textAlign: TextAlign.center,
               ),
             );
-          },
-        );
-      },
+          }
+          final docs = snapshot.data?.docs ?? [];
+          if (docs.isEmpty) {
+            return const Center(child: Text('No students have checked in yet.'));
+          }
+          return ListView.separated(
+            itemCount: docs.length,
+            separatorBuilder: (_, __) => const Divider(height: 1),
+            itemBuilder: (context, index) {
+              final student = docs[index].data() as Map<String, dynamic>;
+              return ListTile(
+                leading: const Icon(Icons.person, color: Colors.blue),
+                title: Text(student['studentName'] ?? 'Unknown Student'),
+                subtitle: Text('ID: ${student['studentId'] ?? ''}'),
+                trailing: Text(
+                  student['checkInTime'] != null
+                      ? (student['checkInTime'] is Timestamp
+                          ? (student['checkInTime'] as Timestamp)
+                              .toDate()
+                              .toLocal()
+                              .toString()
+                          : student['checkInTime'].toString())
+                      : '',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              );
+            },
+          );
+        },
+      ),
     );
   }
 }

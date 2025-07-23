@@ -1,6 +1,7 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 
 import '../../theme/app_theme.dart';
 import '../../widgets/custom_icon_widget.dart';
@@ -11,8 +12,9 @@ import './widgets/notification_card_widget.dart';
 import './widgets/quick_action_button_widget.dart';
 import './widgets/venue_map_widget.dart';
 
+// Lecturer dashboard interface
 class LecturerInterface extends StatefulWidget {
-  const LecturerInterface({Key? key}) : super(key: key);
+  const LecturerInterface({super.key});
 
   @override
   State<LecturerInterface> createState() => _LecturerInterfaceState();
@@ -20,62 +22,60 @@ class LecturerInterface extends StatefulWidget {
 
 class _LecturerInterfaceState extends State<LecturerInterface>
     with SingleTickerProviderStateMixin {
+  // State variables
   late TabController _tabController;
   bool _isCheckedIn = false;
   int _selectedLectureIndex = -1;
   bool _showMap = false;
-
-  Stream<List<Map<String, dynamic>>> _lecturesStream = FirebaseFirestore
-      .instance
-      .collection('timetables')
-      .where('lecturerId', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
-      .snapshots()
-      .map((snapshot) =>
-          snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList());
-
-  Stream<List<Map<String, dynamic>>> _notificationsStream = FirebaseFirestore
-      .instance
-      .collection('notifications')
-      // .where('lecturerId', isEqualTo: FirebaseAuth.instance.currentUser?.uid) // Example filter
-      .orderBy('timestamp', descending: true)
-      .snapshots()
-      .map((snapshot) =>
-          snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList());
-
-  // Define quick actions data
-  final List<Map<String, dynamic>> _quickActions = [
-    {
-      "id": "report_issue",
-      "icon":
-          "report_problem", // Changed to a more appropriate icon for "Report Issue"
-      "title": "Report Issue",
-      "color": AppTheme.warning600,
-    }
-    // Add more actions as needed, ensuring icons are in CustomIconWidget
-  ];
-
   int _selectedNavIndex = 0;
 
+  // Streams for real-time data
+  Stream<List<Map<String, dynamic>>> _lecturesStream() =>
+      FirebaseFirestore.instance
+          .collection('timetables')
+          .where('lecturerId', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
+          .snapshots()
+          .map((snapshot) =>
+              snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList());
+
+  Stream<List<Map<String, dynamic>>> _notificationsStream() =>
+      FirebaseFirestore.instance
+          .collection('notifications')
+          .orderBy('timestamp', descending: true)
+          .snapshots()
+          .map((snapshot) =>
+              snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList());
+
+  // Quick actions configuration
+  final List<Map<String, dynamic>> _quickActions = [
+    {
+      'id': 'report_issue',
+      'icon': 'report_problem',
+      'title': 'Report Issue',
+      'color': AppTheme.warning600,
+    },
+  ];
+
+  // Navigation items
   final List<_DashboardNavItem> _navItems = [
     _DashboardNavItem(
-      icon: 'fact_check', // Attendance
+      icon: 'fact_check',
       label: 'Attendance',
       widgetBuilder: (context) =>
           AttendanceStatsWidget(courseId: 'sampleCourseId'),
     ),
     _DashboardNavItem(
-      icon: 'timer', // Class Timer
+      icon: 'timer',
       label: 'Class Timer',
       widgetBuilder: (context) => ClassTimerWidget(classId: 'sampleClassId'),
     ),
     _DashboardNavItem(
-      icon: 'notifications_active', // Notifications
+      icon: 'notifications_active',
       label: 'Notifications',
-      widgetBuilder: (context) =>
-          const SizedBox.shrink(), // Will open notifications panel
+      widgetBuilder: (context) => _LecturerInterfaceState._buildNotificationsView(context),
     ),
     _DashboardNavItem(
-      icon: 'map', // Venue Map
+      icon: 'map',
       label: 'Venue Map',
       widgetBuilder: (context) =>
           VenueMapWidget(fromVenue: 'A101', toVenue: 'B202'),
@@ -97,18 +97,20 @@ class _LecturerInterfaceState extends State<LecturerInterface>
     super.dispose();
   }
 
+  // Log check-in to Firestore
   Future<void> _logCheckIn(String timetableId) async {
     try {
       await FirebaseFirestore.instance.collection('check_ins').add({
         'timetableId': timetableId,
         'timestamp': FieldValue.serverTimestamp(),
-        'lecturerId': 'currentLecturerId', // Replace with actual lecturer ID
+        'lecturerId': FirebaseAuth.instance.currentUser?.uid,
       });
     } catch (e) {
       debugPrint('Error logging check-in: $e');
     }
   }
 
+  // Handle check-in action
   void _handleCheckIn(int index, String lectureId) {
     setState(() {
       _isCheckedIn = true;
@@ -117,6 +119,7 @@ class _LecturerInterfaceState extends State<LecturerInterface>
     _logCheckIn(lectureId);
   }
 
+  // Handle end class action
   void _handleEndClass() {
     setState(() {
       _isCheckedIn = false;
@@ -124,25 +127,20 @@ class _LecturerInterfaceState extends State<LecturerInterface>
     });
   }
 
+  // Handle navigation item tap
   void _onNavTap(int index) {
-    if (_navItems[index].widgetBuilder == null) {
-      _showNotificationsPanel(context);
-    } else {
-      showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        builder: (context) => Padding(
-          padding: const EdgeInsets.only(top: 16),
-          child: _navItems[index].widgetBuilder!(context),
-        ),
-      );
-    }
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.only(top: 16),
+        child: _navItems[index].widgetBuilder!(context),
+      ),
+    );
   }
-
-  // Add the missing method to show notifications panel
 
   @override
   Widget build(BuildContext context) {
@@ -150,149 +148,150 @@ class _LecturerInterfaceState extends State<LecturerInterface>
       valueListenable: _isDarkMode,
       builder: (context, isDark, _) {
         return MaterialApp(
-            theme: isDark ? AppTheme.darkTheme : AppTheme.lightTheme,
-            darkTheme: AppTheme.darkTheme, // Add this line for completeness
-            themeMode:
-                isDark ? ThemeMode.dark : ThemeMode.light, // Add this line
-            home: Scaffold(
-              drawer: _buildSimpleDrawer(context),
-              endDrawer: _buildSidebarMenu(context, isDark),
-              appBar: AppBar(
-                elevation: 0,
-                backgroundColor: Colors.transparent,
-                title: FutureBuilder<DocumentSnapshot>(
-                  future: FirebaseFirestore.instance
-                      .collection('lecturers')
-                      .doc(FirebaseAuth.instance.currentUser?.uid)
-                      .get(),
-                  builder: (context, snapshot) {
-                    final lecturer =
-                        snapshot.data?.data() as Map<String, dynamic>?;
-
-                    return Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 26,
-                          backgroundColor: AppTheme.primary100,
-                          child: const CustomIconWidget(
-                            iconName: 'account_circle',
-                            color: AppTheme.primary600,
-                            size: 32,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Welcome, Lecturer',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
-                                  ?.copyWith(
-                                    color: AppTheme.primary900,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                            ),
-                            Text(
-                              'Have a productive day!',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(
-                                    color: AppTheme.neutral600,
-                                  ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    );
-                  },
-                ),
-                actions: [
-                  IconButton(
-                    icon: const Icon(
-                      Icons
-                          .notifications_active, // Use a nice Material icon for notifications
-                      color: AppTheme.primary600,
-                    ),
-                    onPressed: () => _showNotificationsPanel(context),
-                    tooltip: 'Notifications',
-                  ),
-                  // Add a dark mode toggle button to the AppBar actions
-                  IconButton(
-                    icon: Icon(
-                      isDark ? Icons.dark_mode : Icons.light_mode,
-                      color: AppTheme.primary600,
-                    ),
-                    tooltip:
-                        isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode',
-                    onPressed: () {
-                      _isDarkMode.value = !isDark;
-                    },
-                  ),
-                ],
-                flexibleSpace: Container(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Color(0xFF1976D2), Color(0xFF42A5F5)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                  ),
-                ),
-              ),
-              body: SafeArea(
-                child: Container(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Color(0xFFF8FBFF), Color(0xFFEAF1FB)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                  ),
-                  child: StreamBuilder<List<Map<String, dynamic>>>(
-                    stream: _lecturesStream,
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-                      if (snapshot.hasError) {
-                        return const Center(
-                            child: Text('Error loading lectures.'));
-                      }
-                      final lectures = snapshot.data ?? [];
-                      return _isCheckedIn && _selectedLectureIndex != -1
-                          ? _buildActiveClassView(
-                              lectures[_selectedLectureIndex])
-                          : _buildScheduleView(lectures);
-                    },
-                  ),
-                ),
-              ),
-              // REPLACE the old bottomNavigationBar with the new one below:
-              bottomNavigationBar: BottomNavigationBar(
-                items: const [
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.today),
-                    label: "Today's Schedule",
-                  ),
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.schedule),
-                    label: 'Upcoming Lectures',
-                  ),
-                ],
-                currentIndex: _tabController.index,
-                onTap: (index) {
-                  _tabController.animateTo(index);
-                  setState(() {});
-                },
-              ),
-            ));
+          theme: isDark ? AppTheme.darkTheme : AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
+          home: Scaffold(
+            drawer: _buildSimpleDrawer(context),
+            endDrawer: _buildSidebarMenu(context, isDark),
+            appBar: _buildAppBar(context, isDark),
+            body: _buildBody(),
+            bottomNavigationBar: _buildBottomNavigationBar(),
+          ),
+        );
       },
     );
   }
 
+  // Build the app bar with lecturer info and actions
+  AppBar _buildAppBar(BuildContext context, bool isDark) {
+    return AppBar(
+      elevation: 0,
+      backgroundColor: Colors.transparent,
+      title: FutureBuilder<DocumentSnapshot>(
+        future: FirebaseFirestore.instance
+            .collection('lecturers')
+            .doc(FirebaseAuth.instance.currentUser?.uid)
+            .get(),
+        builder: (context, snapshot) {
+          final lecturer = snapshot.data?.data() as Map<String, dynamic>?;
+
+          return Row(
+            children: [
+              CircleAvatar(
+                radius: 26,
+                backgroundColor: AppTheme.primary100,
+                child: const CustomIconWidget(
+                  iconName: 'account_circle',
+                  color: AppTheme.primary600,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Welcome, Lecturer',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: AppTheme.primary900,
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                  Text(
+                    'Have a productive day!',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppTheme.neutral600,
+                        ),
+                  ),
+                ],
+              ),
+            ],
+          );
+        },
+      ),
+      actions: [
+        IconButton(
+          icon: const Icon(
+            Icons.notifications_active,
+            color: AppTheme.primary600,
+          ),
+          onPressed: () => _onNavTap(2), // Show notifications
+          tooltip: 'Notifications',
+        ),
+        IconButton(
+          icon: Icon(
+            isDark ? Icons.dark_mode : Icons.light_mode,
+            color: AppTheme.primary600,
+          ),
+          tooltip: isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode',
+          onPressed: () => _isDarkMode.value = !isDark,
+        ),
+      ],
+      flexibleSpace: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF1976D2), Color(0xFF42A5F5)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Build the main body with lectures stream
+  Widget _buildBody() {
+    return SafeArea(
+      child: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFFF8FBFF), Color(0xFFEAF1FB)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: StreamBuilder<List<Map<String, dynamic>>>(
+          stream: _lecturesStream(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return const Center(child: Text('Error loading lectures.'));
+            }
+            final lectures = snapshot.data ?? [];
+            return _isCheckedIn && _selectedLectureIndex != -1
+                ? _buildActiveClassView(lectures[_selectedLectureIndex])
+                : _buildScheduleView(lectures);
+          },
+        ),
+      ),
+    );
+  }
+
+  // Build the bottom navigation bar
+  BottomNavigationBar _buildBottomNavigationBar() {
+    return BottomNavigationBar(
+      items: const [
+        BottomNavigationBarItem(
+          icon: Icon(Icons.today),
+          label: "Today's Schedule",
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.schedule),
+          label: 'Upcoming Lectures',
+        ),
+      ],
+      currentIndex: _tabController.index,
+      onTap: (index) {
+        _tabController.animateTo(index);
+        setState(() {});
+      },
+    );
+  }
+
+  // Build schedule view with tabs
   Widget _buildScheduleView(List<Map<String, dynamic>> lectures) {
     final today = DateTime.now();
 
@@ -318,7 +317,6 @@ class _LecturerInterfaceState extends State<LecturerInterface>
     return TabBarView(
       controller: _tabController,
       children: [
-        // Tab 0: Today's Schedule
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -328,168 +326,118 @@ class _LecturerInterfaceState extends State<LecturerInterface>
             Expanded(
               child: _buildLecturesList(
                 todayLectures,
-                emptyText: "No lectures scheduled for today.",
+                emptyText: 'No lectures scheduled for today.',
               ),
             ),
           ],
         ),
-        // Tab 1: Upcoming Lectures
         _buildLecturesList(
           upcomingLectures,
-          emptyText: "No upcoming lectures scheduled.",
+          emptyText: 'No upcoming lectures scheduled.',
         ),
       ],
     );
   }
 
+  // Build notification summary card
   Widget _buildNotificationSummary(List<Map<String, dynamic>> notifications) {
-    int unreadCount = notifications.where((n) => !n["isRead"]).length;
+    final unreadCount = notifications.where((n) => !n['isRead']).length;
     return InkWell(
-        onTap: () => _showNotificationsPanel(context),
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppTheme.primary50,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: AppTheme.primary100.withOpacity(0.12),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
+      onTap: () => _onNavTap(2), // Show notifications
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppTheme.primary50,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.primary100.withOpacity(0.12),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppTheme.primary100,
+                shape: BoxShape.circle,
               ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: AppTheme.primary100,
-                  shape: BoxShape.circle,
-                ),
-                child: const CustomIconWidget(
-                  iconName: 'notifications_active',
-                  color: AppTheme.primary600,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Text(
-                  'You have $unreadCount unread notification${unreadCount > 1 ? 's' : ''}',
-                  style: AppTheme.lightTheme.textTheme.bodyLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.primary700,
-                  ),
-                ),
-              ),
-              const CustomIconWidget(
-                iconName: 'arrow_forward_ios',
+              child: const CustomIconWidget(
+                iconName: 'notifications_active',
                 color: AppTheme.primary600,
-                size: 18,
-              ),
-            ],
-          ),
-        ));
-  }
-
-  Widget _buildLecturesList(List<Map<String, dynamic>> lectures,
-      {String? emptyText}) {
-    return lectures.isEmpty
-        ? Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const CustomIconWidget(
-                    iconName: 'event_busy',
-                    color: AppTheme.neutral300,
-                    size: 72,
-                  ),
-                  const SizedBox(height: 18),
-                  Text(
-                    emptyText ?? 'No lectures scheduled',
-                    textAlign: TextAlign.center,
-                    style: AppTheme.lightTheme.textTheme.bodyLarge?.copyWith(
-                      color: AppTheme.neutral500,
-                    ),
-                  ),
-                ],
+                size: 24,
               ),
             ),
-          )
-        : ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            itemCount: lectures.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 16),
-            itemBuilder: (context, index) {
-              final lecture = lectures[index];
-              final date = (() {
-                final d = lecture['date'];
-                if (d is Timestamp) return d.toDate();
-                if (d is String) return DateTime.tryParse(d);
-                return null;
-              })();
-              final formattedDate = date != null
-                  ? "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}"
-                  : '';
-              return Card(
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                'You have $unreadCount unread notification${unreadCount > 1 ? 's' : ''}',
+                style: AppTheme.lightTheme.textTheme.bodyLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.primary700,
                 ),
-                child: ListTile(
-                  leading:
-                      const Icon(Icons.class_, color: Colors.blue, size: 36),
-                  title: Text(
-                    "${lecture['courseCode'] ?? ''} - ${lecture['courseTitle'] ?? ''}",
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text("Date: $formattedDate"),
-                      Text(
-                          "Time: ${lecture['startTime'] ?? ''} - ${lecture['endTime'] ?? ''}"),
-                      Text("Room: ${lecture['room'] ?? ''}"),
-                    ],
-                  ),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.info_outline, color: Colors.grey),
-                    onPressed: () {
-                      // Optionally show more details or actions
-                    },
-                  ),
-                ),
-              );
-            },
-          );
-  }
-
-  Widget _buildEmptyUpcomingLectures() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const CustomIconWidget(
-            iconName: 'event_note',
-            color: AppTheme.neutral300,
-            size: 72,
-          ),
-          const SizedBox(height: 18),
-          Text(
-            'Your upcoming lectures will appear here',
-            style: AppTheme.lightTheme.textTheme.bodyLarge?.copyWith(
-              color: AppTheme.neutral500,
+              ),
             ),
-          ),
-        ],
+            const CustomIconWidget(
+              iconName: 'arrow_forward_ios',
+              color: AppTheme.primary600,
+              size: 18,
+            ),
+          ],
+        ),
       ),
     );
   }
 
+  // Build lectures list
+  Widget _buildLecturesList(List<Map<String, dynamic>> lectures,
+      {required String emptyText}) {
+    if (lectures.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const CustomIconWidget(
+                iconName: 'event_busy',
+                color: AppTheme.neutral300,
+                size: 72,
+              ),
+              const SizedBox(height: 18),
+              Text(
+                emptyText,
+                textAlign: TextAlign.center,
+                style: AppTheme.lightTheme.textTheme.bodyLarge?.copyWith(
+                  color: AppTheme.neutral500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      itemCount: lectures.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 16),
+      itemBuilder: (context, index) {
+        final lecture = lectures[index];
+        final date = parseLectureDate(lecture['date']);
+        return LectureCardWidget(
+          lecture: lecture,
+          onCheckIn: () => _handleCheckIn(index, lecture['id']),
+        );
+      },
+    );
+  }
+
+  // Build quick actions row
   Widget _buildQuickActionsRow() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20.0),
@@ -497,7 +445,7 @@ class _LecturerInterfaceState extends State<LecturerInterface>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            "Quick Actions",
+            'Quick Actions',
             style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w700,
               color: AppTheme.primary900,
@@ -514,7 +462,7 @@ class _LecturerInterfaceState extends State<LecturerInterface>
                     action: action,
                     onTap: () {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text("${action['title']} tapped")),
+                        SnackBar(content: Text('${action['title']} tapped')),
                       );
                     },
                   ),
@@ -527,6 +475,7 @@ class _LecturerInterfaceState extends State<LecturerInterface>
     );
   }
 
+  // Build active class view
   Widget _buildActiveClassView(Map<String, dynamic> lecture) {
     return Column(
       children: [
@@ -558,7 +507,7 @@ class _LecturerInterfaceState extends State<LecturerInterface>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      lecture["courseCode"],
+                      lecture['courseCode'] ?? '',
                       style:
                           AppTheme.lightTheme.textTheme.headlineSmall?.copyWith(
                         color: Colors.white,
@@ -568,7 +517,7 @@ class _LecturerInterfaceState extends State<LecturerInterface>
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      lecture["courseTitle"],
+                      lecture['courseTitle'] ?? '',
                       style: AppTheme.lightTheme.textTheme.bodyLarge?.copyWith(
                         color: Colors.white.withAlpha(220),
                         fontWeight: FontWeight.w500,
@@ -579,7 +528,7 @@ class _LecturerInterfaceState extends State<LecturerInterface>
                   ],
                 ),
               ),
-              ClassTimerWidget(classId: lecture["id"]),
+              ClassTimerWidget(classId: lecture['id']),
             ],
           ),
         ),
@@ -592,7 +541,7 @@ class _LecturerInterfaceState extends State<LecturerInterface>
             ),
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: AttendanceStatsWidget(courseId: lecture["id"]),
+              child: AttendanceStatsWidget(courseId: lecture['id']),
             ),
           ),
         ),
@@ -622,34 +571,85 @@ class _LecturerInterfaceState extends State<LecturerInterface>
     );
   }
 
-  void _showNotificationsPanel(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (context) {
-        return StreamBuilder<List<Map<String, dynamic>>>(
-          stream: _notificationsStream,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
+  // Build notifications view
+  static Widget _buildNotificationsView(BuildContext context) {
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('notifications')
+          .orderBy('timestamp', descending: true)
+          .snapshots()
+          .map((snapshot) =>
+              snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList()),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return const Center(child: Text('Error loading notifications.'));
+        }
+        final notifications = snapshot.data ?? [];
+        return ListView.builder(
+          itemCount: notifications.length,
+          itemBuilder: (context, index) {
+            return NotificationCardWidget(
+              notification: notifications[index],
+              onTap: () {},
+            );
+          },
+        );
+      },
+    );
+  }
 
-            if (snapshot.hasError) {
-              return const Center(child: Text('Error loading notifications.'));
-            }
+  // Build attendance view with student check-ins
+  Widget _buildAttendanceView(BuildContext context) {
+    final lecturerId = FirebaseAuth.instance.currentUser?.uid;
+    if (lecturerId == null) {
+      return const Center(child: Text('Please log in to view attendance.'));
+    }
 
-            final notifications = snapshot.data ?? [];
-            return ListView.builder(
-              itemCount: notifications.length,
-              itemBuilder: (context, index) {
-                return NotificationCardWidget(
-                  notification: notifications[index],
-                  onTap: () {
-                    // Handle notification tap
-                  },
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: _lecturesStream(),
+      builder: (context, lectureSnapshot) {
+        if (lectureSnapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (lectureSnapshot.hasError || !lectureSnapshot.hasData) {
+          return const Center(child: Text('Error loading lectures.'));
+        }
+
+        final lectures = lectureSnapshot.data ?? [];
+        if (lectures.isEmpty) {
+          return const Center(child: Text('No lectures found.'));
+        }
+
+        return ListView.builder(
+          itemCount: lectures.length,
+          itemBuilder: (context, index) {
+            final lecture = lectures[index];
+            return FutureBuilder<List<String>>(
+              future: _fetchCheckedInStudentNames(lecture['id']),
+              builder: (context, studentSnapshot) {
+                if (studentSnapshot.connectionState == ConnectionState.waiting) {
+                  return ListTile(
+                    title: Text(lecture['courseTitle'] ?? 'Lecture'),
+                    subtitle: const Text('Loading attendance...'),
+                  );
+                }
+                if (studentSnapshot.hasError || !studentSnapshot.hasData) {
+                  return ListTile(
+                    title: Text(lecture['courseTitle'] ?? 'Lecture'),
+                    subtitle: const Text('Error loading attendance.'),
+                  );
+                }
+
+                final studentNames = studentSnapshot.data ?? [];
+                return ExpansionTile(
+                  title: Text(lecture['courseTitle'] ?? 'Lecture'),
+                  subtitle: Text('Checked in: ${studentNames.length} students'),
+                  children: studentNames.isEmpty
+                      ? [const ListTile(title: Text('No students checked in.'))]
+                      : studentNames.map((name) => ListTile(title: Text(name))).toList(),
                 );
               },
             );
@@ -659,6 +659,30 @@ class _LecturerInterfaceState extends State<LecturerInterface>
     );
   }
 
+  // Fetch checked-in student names for a specific lecture
+  Future<List<String>> _fetchCheckedInStudentNames(String timetableId) async {
+    final checkInsSnapshot = await FirebaseFirestore.instance
+        .collection('student_check_ins')
+        .where('timetableId', isEqualTo: timetableId)
+        .get();
+
+    final studentIds = checkInsSnapshot.docs
+        .map((doc) => doc['studentId'] as String)
+        .toList();
+
+    if (studentIds.isEmpty) return [];
+
+    final studentsSnapshot = await FirebaseFirestore.instance
+        .collection('students')
+        .where(FieldPath.documentId, whereIn: studentIds)
+        .get();
+
+    return studentsSnapshot.docs
+        .map((doc) => doc['name'] as String? ?? 'Unknown')
+        .toList();
+  }
+
+  // Show venue map bottom sheet
   void _showVenueMapBottomSheet(
       BuildContext context, Map<String, dynamic> lecture) {
     showModalBottomSheet(
@@ -669,13 +693,14 @@ class _LecturerInterfaceState extends State<LecturerInterface>
       ),
       builder: (context) {
         return VenueMapWidget(
-          fromVenue: lecture["originalVenue"],
-          toVenue: lecture["currentVenue"],
+          fromVenue: lecture['originalVenue'] ?? '',
+          toVenue: lecture['currentVenue'] ?? '',
         );
       },
     );
   }
 
+  // Build menu item widget
   Widget _buildMenuItem({
     required IconData icon,
     required String label,
@@ -684,21 +709,23 @@ class _LecturerInterfaceState extends State<LecturerInterface>
   }) {
     return ListTile(
       leading: Icon(icon, color: AppTheme.primary600),
-      title: Text(label,
-          style: AppTheme.lightTheme.textTheme.bodyLarge
-              ?.copyWith(color: textColor)),
+      title: Text(
+        label,
+        style: AppTheme.lightTheme.textTheme.bodyLarge?.copyWith(color: textColor),
+      ),
       onTap: onTap,
     );
   }
 
+  // Build sidebar menu
   Widget _buildSidebarMenu(BuildContext context, bool isDark) {
     final textColor = isDark ? Colors.white : AppTheme.primary900;
     final subTextColor = isDark ? Colors.white70 : AppTheme.neutral600;
+
     return Drawer(
       child: SafeArea(
         child: Column(
           children: [
-            // Facebook-style header
             Container(
               color: AppTheme.primary50,
               padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
@@ -707,23 +734,27 @@ class _LecturerInterfaceState extends State<LecturerInterface>
                   CircleAvatar(
                     radius: 28,
                     backgroundColor: AppTheme.primary300,
-                    child:
-                        const Icon(Icons.person, size: 32, color: Colors.white),
+                    child: const Icon(Icons.person, size: 32, color: Colors.white),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Lecturer',
-                            style: AppTheme.lightTheme.textTheme.titleLarge
-                                ?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: textColor)),
+                        Text(
+                          'Lecturer',
+                          style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: textColor,
+                          ),
+                        ),
                         const SizedBox(height: 4),
-                        Text('lecturer@allocation.edu',
-                            style: AppTheme.lightTheme.textTheme.bodySmall
-                                ?.copyWith(color: subTextColor)),
+                        Text(
+                          'lecturer@allocation.edu',
+                          style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                            color: subTextColor,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -737,20 +768,14 @@ class _LecturerInterfaceState extends State<LecturerInterface>
                   _buildMenuItem(
                     icon: Icons.dashboard,
                     label: 'Dashboard',
-                    onTap: () {
-                      if (Navigator.of(context).canPop()) {
-                        Navigator.pop(context);
-                      }
-                    },
+                    onTap: () => Navigator.pop(context),
                     textColor: textColor,
                   ),
                   _buildMenuItem(
                     icon: Icons.schedule,
                     label: 'My Schedule',
                     onTap: () {
-                      if (Navigator.of(context).canPop()) {
-                        Navigator.pop(context);
-                      }
+                      Navigator.pop(context);
                       _tabController.animateTo(0);
                     },
                     textColor: textColor,
@@ -758,54 +783,18 @@ class _LecturerInterfaceState extends State<LecturerInterface>
                   _buildMenuItem(
                     icon: Icons.check_circle_outline,
                     label: 'Attendance',
-                    onTap: () async {
+                    onTap: () {
                       Navigator.pop(context);
-                      // Show a dialog with the lecturer's courses
-                      final lecturerId = FirebaseAuth.instance.currentUser?.uid;
-                      if (lecturerId == null) return;
-
-                      showDialog(
+                      showModalBottomSheet(
                         context: context,
-                        builder: (context) {
-                          return AlertDialog(
-                            title: const Text('Select Course'),
-                            content: SizedBox(
-                              width: double.maxFinite,
-                              child: StreamBuilder<QuerySnapshot>(
-                                stream: FirebaseFirestore.instance
-                                    .collection('courses')
-                                    .where('lecturerId', isEqualTo: lecturerId)
-                                    .snapshots(),
-                                builder: (context, snapshot) {
-                                  if (snapshot.connectionState ==
-                                      ConnectionState.waiting) {
-                                    return const Center(
-                                        child: CircularProgressIndicator());
-                                  }
-                                  if (!snapshot.hasData ||
-                                      snapshot.data!.docs.isEmpty) {
-                                    return const Text('No courses found.');
-                                  }
-                                  final courses = snapshot.data!.docs;
-                                  return ListView.builder(
-                                    itemCount: courses.length,
-                                    itemBuilder: (context, index) {
-                                      final course = courses[index].data()
-                                          as Map<String, dynamic>;
-                                      return ListTile(
-                                        title: Text(course['title'] ?? 'Course'),
-                                        onTap: () {
-                                          Navigator.pop(context);
-                                          // Handle course selection
-                                        },
-                                      );
-                                    },
-                                  );
-                                },
-                              ),
-                            ),
-                          );
-                        },
+                        isScrollControlled: true,
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                        ),
+                        builder: (context) => Padding(
+                          padding: const EdgeInsets.only(top: 16),
+                          child: _buildAttendanceView(context),
+                        ),
                       );
                     },
                     textColor: textColor,
@@ -815,7 +804,17 @@ class _LecturerInterfaceState extends State<LecturerInterface>
                     label: 'Class Timer',
                     onTap: () {
                       Navigator.pop(context);
-                      Navigator.pushNamed(context, '/lecturer-class-timer');
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                        ),
+                        builder: (context) => Padding(
+                          padding: const EdgeInsets.only(top: 16),
+                          child: ClassTimerWidget(classId: 'sampleClassId'),
+                        ),
+                      );
                     },
                     textColor: textColor,
                   ),
@@ -824,17 +823,15 @@ class _LecturerInterfaceState extends State<LecturerInterface>
                     label: 'Notifications',
                     onTap: () {
                       Navigator.pop(context);
-                      Navigator.pushNamed(context, '/lecturer-notifications');
+                      _onNavTap(2); // Use existing nav tap for notifications
                     },
                     textColor: textColor,
                   ),
-                  // Venue Map removed
                   _buildMenuItem(
                     icon: Icons.report_problem,
                     label: 'Report Issue',
                     onTap: () {
                       Navigator.pop(context);
-                      // You can show a dialog or navigate to a report issue screen here
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Report Issue tapped')),
                       );
@@ -844,7 +841,8 @@ class _LecturerInterfaceState extends State<LecturerInterface>
                   const Divider(),
                   SwitchListTile(
                     secondary: Icon(
-                        _isDarkMode.value ? Icons.dark_mode : Icons.light_mode),
+                      _isDarkMode.value ? Icons.dark_mode : Icons.light_mode,
+                    ),
                     title: Text('Dark Mode', style: TextStyle(color: textColor)),
                     value: _isDarkMode.value,
                     onChanged: (val) => _isDarkMode.value = val,
@@ -852,14 +850,11 @@ class _LecturerInterfaceState extends State<LecturerInterface>
                   const Divider(),
                   ListTile(
                     leading: const Icon(Icons.logout, color: Colors.red),
-                    title: const Text('Logout',
-                        style: TextStyle(color: Colors.red)),
+                    title: const Text('Logout', style: TextStyle(color: Colors.red)),
                     onTap: () {
-                      if (Navigator.of(context).canPop()) {
-                        Navigator.pop(context);
-                      }
-                      Navigator.pushReplacementNamed(
-                          context, '/lecturer-login');
+                      Navigator.pop(context);
+                      FirebaseAuth.instance.signOut();
+                      Navigator.pushReplacementNamed(context, '/lecturer-login');
                     },
                   ),
                 ],
@@ -878,16 +873,7 @@ class _LecturerInterfaceState extends State<LecturerInterface>
     );
   }
 
-  Future<List<Map<String, dynamic>>> _fetchStudents(
-      List<dynamic> studentIds) async {
-    if (studentIds.isEmpty) return [];
-    final snapshot = await FirebaseFirestore.instance
-        .collection('students')
-        .where(FieldPath.documentId, whereIn: studentIds)
-        .get();
-    return snapshot.docs.map((doc) => doc.data()).toList();
-  }
-
+  // Build simple drawer
   Widget _buildSimpleDrawer(BuildContext context) {
     return Drawer(
       child: FutureBuilder<DocumentSnapshot>(
@@ -900,87 +886,29 @@ class _LecturerInterfaceState extends State<LecturerInterface>
 
           return ListView(
             padding: EdgeInsets.zero,
-            children: <Widget>[
+            children: [
               DrawerHeader(
                 decoration: const BoxDecoration(color: Colors.blue),
                 child: lecturer == null
-                    ? const Center(
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                        ),
-                      )
-                    : Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              CircleAvatar(
-                                radius: 28,
-                                backgroundColor: Colors.white,
-                                child: const Icon(Icons.person,
-                                    size: 32, color: Colors.blue),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      lecturer['name'] ?? 'Lecturer',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      lecturer['email'] ?? '',
-                                      style: const TextStyle(
-                                        color: Colors.white70,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ],
-                                )
-                              )
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              const Icon(Icons.school,
-                                  color: Colors.white70, size: 18),
-                              const SizedBox(width: 6),
-                              Text(
-                                lecturer['school'] ?? '',
-                                style: const TextStyle(
-                                    color: Colors.white70, fontSize: 14),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              const Icon(Icons.badge,
-                                  color: Colors.white70, size: 18),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Staff ID: ${lecturer['staffId'] ?? ''}',
-                                style: const TextStyle(
-                                    color: Colors.white70, fontSize: 14),
-                              ),
-                            ],
-                          ),
-                        ],
-                      )
+                    ? const Center(child: CircularProgressIndicator(color: Colors.white))
+                    : _buildDrawerHeaderContent(lecturer),
               ),
               ListTile(
                 leading: const Icon(Icons.check_circle_outline),
                 title: const Text('Attendance'),
                 onTap: () {
                   Navigator.pop(context);
-                  Navigator.pushNamed(context, '/lecturer-attendance');
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                    ),
+                    builder: (context) => Padding(
+                      padding: const EdgeInsets.only(top: 16),
+                      child: _buildAttendanceView(context),
+                    ),
+                  );
                 },
               ),
               ListTile(
@@ -988,7 +916,17 @@ class _LecturerInterfaceState extends State<LecturerInterface>
                 title: const Text('Class Timer'),
                 onTap: () {
                   Navigator.pop(context);
-                  Navigator.pushNamed(context, '/lecturer-class-timer');
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                    ),
+                    builder: (context) => Padding(
+                      padding: const EdgeInsets.only(top: 16),
+                      child: ClassTimerWidget(classId: 'sampleClassId'),
+                    ),
+                  );
                 },
               ),
               ListTile(
@@ -996,17 +934,15 @@ class _LecturerInterfaceState extends State<LecturerInterface>
                 title: const Text('Notifications'),
                 onTap: () {
                   Navigator.pop(context);
-                  Navigator.pushNamed(context, '/lecturer-notifications');
+                  _onNavTap(2);
                 },
               ),
-              const Divider(),
-
               const Divider(),
               ListTile(
                 leading: const Icon(Icons.logout),
                 title: const Text('Logout'),
                 onTap: () async {
-                  Navigator.of(context).pop();
+                  Navigator.pop(context);
                   await FirebaseAuth.instance.signOut();
                   Navigator.pushReplacementNamed(context, '/lecturer-login');
                 },
@@ -1017,9 +953,87 @@ class _LecturerInterfaceState extends State<LecturerInterface>
       ),
     );
   }
+
+  // Build drawer header content
+  Widget _buildDrawerHeaderContent(Map<String, dynamic> lecturer) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const CircleAvatar(
+              radius: 28,
+              backgroundColor: Colors.white,
+              child: Icon(Icons.person, size: 32, color: Colors.blue),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    lecturer['name'] ?? 'Lecturer',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    lecturer['email'] ?? '',
+                    style: const TextStyle(color: Colors.white70, fontSize: 14),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            const Icon(Icons.school, color: Colors.white70, size: 18),
+            const SizedBox(width: 6),
+            Text(
+              lecturer['school'] ?? '',
+              style: const TextStyle(color: Colors.white70, fontSize: 14),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            const Icon(Icons.badge, color: Colors.white70, size: 18),
+            const SizedBox(width: 6),
+            Text(
+              'Staff ID: ${lecturer['staffId'] ?? ''}',
+              style: const TextStyle(color: Colors.white70, fontSize: 14),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // Fetch students data
+  Future<List<Map<String, dynamic>>> _fetchStudents(List<dynamic> studentIds) async {
+    if (studentIds.isEmpty) return [];
+    final snapshot = await FirebaseFirestore.instance
+        .collection('students')
+        .where(FieldPath.documentId, whereIn: studentIds)
+        .get();
+    return snapshot.docs.map((doc) => doc.data()).toList();
+  }
+
+  // Parse lecture date from dynamic input
+  DateTime? parseLectureDate(dynamic dateField) {
+    if (dateField is Timestamp) return dateField.toDate();
+    if (dateField is String) return DateTime.tryParse(dateField);
+    return null;
+  }
 }
 
-// Helper class for nav items
+// Helper class for navigation items
 class _DashboardNavItem {
   final String icon;
   final String label;
@@ -1030,4 +1044,145 @@ class _DashboardNavItem {
     required this.label,
     this.widgetBuilder,
   });
+}
+
+// ClassTimerWidget definition
+class ClassTimerWidget extends StatefulWidget {
+  final String classId;
+
+  const ClassTimerWidget({super.key, required this.classId});
+
+  @override
+  _ClassTimerWidgetState createState() => _ClassTimerWidgetState();
+}
+
+class _ClassTimerWidgetState extends State<ClassTimerWidget> {
+  int? _remainingSeconds;
+  String? _lectureTitle;
+  bool _isRunning = false;
+  Timer? _timer;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchLectureData();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _fetchLectureData() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('timetables')
+          .doc(widget.classId)
+          .get();
+      final data = snapshot.data() as Map<String, dynamic>?;
+      if (data != null) {
+        setState(() {
+          _lectureTitle = data['courseTitle'] ?? 'Lecture';
+          final durationMinutes = data['duration'] ?? 60; // Default to 60 minutes
+          _remainingSeconds = durationMinutes * 60;
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching lecture data: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _startPauseTimer() {
+    if (_isLoading || _remainingSeconds == null) return;
+
+    if (_isRunning) {
+      _timer?.cancel();
+    } else {
+      _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        if (_remainingSeconds! > 0) {
+          setState(() {
+            _remainingSeconds = _remainingSeconds! - 1;
+          });
+        } else {
+          _timer?.cancel();
+          setState(() {
+            _isRunning = false;
+          });
+        }
+      });
+    }
+    setState(() {
+      _isRunning = !_isRunning;
+    });
+  }
+
+  String _formatTime(int seconds) {
+    final minutes = (seconds ~/ 60).toString().padLeft(2, '0');
+    final secs = (seconds % 60).toString().padLeft(2, '0');
+    return '$minutes:$secs';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            _lectureTitle ?? 'Lecture',
+            style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: AppTheme.primary900,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 20),
+          Text(
+            _remainingSeconds != null ? _formatTime(_remainingSeconds!) : '00:00',
+            style: AppTheme.lightTheme.textTheme.headlineMedium?.copyWith(
+              fontSize: 48,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.primary600,
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            _isRunning ? 'Running' : 'Paused',
+            style: AppTheme.lightTheme.textTheme.bodyLarge?.copyWith(
+              color: AppTheme.neutral600,
+            ),
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton.icon(
+            icon: Icon(_isRunning ? Icons.pause : Icons.play_arrow),
+            label: Text(_isRunning ? 'Pause' : 'Start'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primary600,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: _startPauseTimer,
+          ),
+        ],
+      ),
+    );
+  }
 }

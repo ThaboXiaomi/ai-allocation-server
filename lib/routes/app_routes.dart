@@ -19,36 +19,33 @@ import 'package:lecture_room_allocator/presentation/admin_dashboard/widgets/facu
     as fiw;
 import 'package:lecture_room_allocator/presentation/student_dashboard/widgets/student_settings.dart';
 import 'package:lecture_room_allocator/presentation/lecturer_interface/widgets/attendance_stats_widget.dart';
-import 'package:lecture_room_allocator/presentation/lecturer_interface/widgets/class_timer_widget.dart';
+import 'package:lecture_room_allocator/presentation/lecturer_interface/widgets/class_timer_widget.dart'
+    as ctw;
 import 'package:lecture_room_allocator/presentation/lecturer_interface/widgets/notification_card_widget.dart';
 import 'package:lecture_room_allocator/presentation/lecturer_interface/widgets/venue_map_widget.dart';
 
 class AppRoutes {
+  // Route constants
   static const String codeViewer = '/code-viewer';
   static const String portalSelection = '/portal-selection';
-
   static const String studentAuth = '/student-auth';
   static const String adminAuth = '/admin-auth';
   static const String lecturerAuth = '/lecturer-auth';
-
   static const String studentDashboard = '/student-dashboard';
   static const String adminDashboard = '/admin-dashboard';
   static const String lecturerDashboard = '/lecturer-dashboard';
-
   static const String courseManagement = '/course-management';
   static const String aiAllocationDashboard = '/ai-allocation-dashboard';
   static const String facultyManagement = '/faculty-management';
-  static const String venueManagement =
-      '/venue-management'; // <-- Added constant
+  static const String venueManagement = '/venue-management';
   static const String facultyList = '/faculty-list';
   static const String studentSettings = '/student-settings';
-
-  // Add these route constants:
   static const String lecturerAttendance = '/lecturer-attendance';
   static const String lecturerClassTimer = '/lecturer-class-timer';
   static const String lecturerNotifications = '/lecturer-notifications';
   static const String lecturerVenueMap = '/lecturer-venue-map';
 
+  // Static routes map with Scaffold for proper screen rendering
   static final Map<String, WidgetBuilder> routes = {
     codeViewer: (_) => const CodeViewerScreen(filePath: '', fileName: ''),
     portalSelection: (_) => const PortalSelectionScreen(),
@@ -64,19 +61,26 @@ class AppRoutes {
     venueManagement: (_) => const VenueManagementScreen(),
     facultyList: (_) => fls.FacultyListScreen(),
     studentSettings: (_) => const StudentSettings(),
-    // Add these to the routes map:
-    lecturerAttendance: (_) =>
-        AttendanceStatsWidget(courseId: 'sampleCourseId'),
-    lecturerClassTimer: (_) => ClassTimerWidget(classId: 'sampleClassId'),
-    lecturerNotifications: (_) => NotificationCardWidget(
-          notification: const {
-            "id": "notif1",
-            "isRead": false,
-            "type": "system",
-          },
-          onTap: () {},
+    lecturerAttendance: (_) => AttendanceStatsWidget(courseId: 'sampleCourseId'),
+    lecturerClassTimer: (_) => Scaffold(
+          appBar: AppBar(title: const Text('Class Timer')),
+          body: const ctw.ClassTimerWidget(classId: 'sampleClassId'),
         ),
-    lecturerVenueMap: (_) => VenueMapWidget(fromVenue: 'A101', toVenue: 'B202'),
+    lecturerNotifications: (_) => Scaffold(
+          appBar: AppBar(title: const Text('Notifications')),
+          body: NotificationCardWidget(
+            notification: const {
+              'id': 'notif1',
+              'isRead': false,
+              'type': 'system',
+            },
+            onTap: () {},
+          ),
+        ),
+    lecturerVenueMap: (_) => Scaffold(
+          appBar: AppBar(title: const Text('Venue Map')),
+          body: const VenueMapWidget(fromVenue: 'A101', toVenue: 'B202'),
+        ),
   };
 
   /// Dynamically determine the initial screen based on auth state
@@ -88,8 +92,7 @@ class AppRoutes {
     }
 
     return FutureBuilder<DocumentSnapshot>(
-      future:
-          FirebaseFirestore.instance.collection('users').doc(user.uid).get(),
+      future: FirebaseFirestore.instance.collection('users').doc(user.uid).get(),
       builder: (ctx, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
           return const Scaffold(
@@ -98,7 +101,7 @@ class AppRoutes {
         }
         if (snap.hasError || !snap.hasData || !snap.data!.exists) {
           // Log error and sign out
-          print("Error fetching user role: ${snap.error}");
+          print('Error fetching user role: ${snap.error}');
           FirebaseAuth.instance.signOut();
           return const PortalSelectionScreen();
         }
@@ -119,49 +122,56 @@ class AppRoutes {
     );
   }
 
+  /// Handle dynamic route generation with arguments
   static Route<dynamic>? onGenerateRoute(RouteSettings settings) {
+    final args = settings.arguments as Map<String, dynamic>? ?? {};
     switch (settings.name) {
       case lecturerAttendance:
-        final args = settings.arguments as Map<String, dynamic>? ?? {};
+        final courseId = args['courseId'] as String? ?? 'sampleCourseId';
         return MaterialPageRoute(
-          builder: (_) => AttendanceStatsWidget(
-            courseId: args['courseId'] ?? 'sampleCourseId',
+          builder: (_) => Scaffold(
+            appBar: AppBar(title: const Text('Attendance Statistics')),
+            body: AttendanceStatsWidget(courseId: courseId),
           ),
         );
       case lecturerClassTimer:
-        final args = settings.arguments as Map<String, dynamic>? ?? {};
+        final classId = args['classId'] as String? ?? 'sampleClassId';
         return MaterialPageRoute(
-          builder: (_) => ClassTimerWidget(
-            classId: args['classId'] ?? 'sampleClassId',
+          builder: (_) => Scaffold(
+            appBar: AppBar(title: const Text('Class Timer')),
+            body: ctw.ClassTimerWidget(classId: classId),
           ),
         );
       case lecturerNotifications:
-        final args = settings.arguments as Map<String, dynamic>? ?? {};
+        final notification = args['notification'] as Map<String, dynamic>? ??
+            const {
+              'id': 'notif1',
+              'isRead': false,
+              'type': 'system',
+            };
+        final onTap = args['onTap'] as VoidCallback? ?? () {};
         return MaterialPageRoute(
-          builder: (_) => NotificationCardWidget(
-            notification: args['notification'] ??
-                const {
-                  "id": "notif1",
-                  "isRead": false,
-                  "type": "system",
-                },
-            onTap: args['onTap'] ?? () {},
+          builder: (_) => Scaffold(
+            appBar: AppBar(title: const Text('Notifications')),
+            body: NotificationCardWidget(notification: notification, onTap: onTap),
           ),
         );
       case lecturerVenueMap:
-        final args = settings.arguments as Map<String, dynamic>? ?? {};
+        final fromVenue = args['fromVenue'] as String? ?? 'A101';
+        final toVenue = args['toVenue'] as String? ?? 'B202';
         return MaterialPageRoute(
-          builder: (_) => VenueMapWidget(
-            fromVenue: args['fromVenue'] ?? 'A101',
-            toVenue: args['toVenue'] ?? 'B202',
+          builder: (_) => Scaffold(
+            appBar: AppBar(title: const Text('Venue Map')),
+            body: VenueMapWidget(fromVenue: fromVenue, toVenue: toVenue),
           ),
         );
       default:
-        // Fallback to static routes or unknown route
+        // Fallback to static routes
         final builder = routes[settings.name];
         if (builder != null) {
           return MaterialPageRoute(builder: builder);
         }
+        // Return null to trigger onUnknownRoute in MaterialApp
         return null;
     }
   }

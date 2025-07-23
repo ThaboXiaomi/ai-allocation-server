@@ -20,27 +20,25 @@ Future<void> main() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
   } catch (e) {
-    // Log the detailed error to the console. This is crucial for debugging.
+    // Log the detailed error to the console
     print("CRITICAL: Firebase initialization failed: $e");
     print(
         "Please ensure you have run 'flutterfire configure' and that your Firebase project setup is correct.");
     print(
         "Check for missing or misconfigured google-services.json (Android) or GoogleService-Info.plist (iOS) if not using DefaultFirebaseOptions.");
 
-    // Display an error screen to the user.
+    // Display an error screen to the user
     runApp(FirebaseErrorScreen(error: e.toString()));
     return; // Stop further execution if Firebase init fails
   }
 
   // Shared preferences initialization
-  // This should only run if Firebase initialized successfully.
   await PrefUtils().init();
 
   runApp(const MyApp());
 }
 
-// A simple error screen widget to display if Firebase initialization fails.
-// You can move this to a separate file if you prefer.
+// Error screen for Firebase initialization failure
 class FirebaseErrorScreen extends StatelessWidget {
   final String error;
   const FirebaseErrorScreen({Key? key, required this.error}) : super(key: key);
@@ -72,22 +70,31 @@ class MyApp extends StatelessWidget {
     return Sizer(
       builder: (context, orientation, deviceType) {
         return MaterialApp(
-          title: 'lecture_room_allocator',
+          title: 'Lecture Room Allocator',
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
           themeMode: ThemeMode.light,
           builder: (context, child) {
             return MediaQuery(
               data: MediaQuery.of(context).copyWith(
-                textScaler: TextScaler.linear(1.0),
+                textScaler: const TextScaler.linear(1.0),
               ),
               child: child!,
             );
           },
           navigatorKey: NavigatorService.navigatorKey,
           debugShowCheckedModeBanner: false,
-          routes: AppRoutes.routes, // <-- Use all routes from AppRoutes
+          routes: AppRoutes.routes,
           onGenerateRoute: AppRoutes.onGenerateRoute,
+          onUnknownRoute: (settings) {
+            return MaterialPageRoute(
+              builder: (context) => Scaffold(
+                body: Center(
+                  child: Text('404: Route "${settings.name}" not found'),
+                ),
+              ),
+            );
+          },
           home: AppRoutes.getInitialScreen(),
         );
       },
