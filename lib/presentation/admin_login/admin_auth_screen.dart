@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:lecture_room_allocator/theme/app_theme.dart';
 import 'package:lecture_room_allocator/presentation/admin_registration_screen/admin_registration_screen.dart';
+import 'package:lecture_room_allocator/routes/app_routes.dart';
 import 'package:lecture_room_allocator/presentation/admin_password_reset/admin_password_reset.dart';
 
 class AdminAuthScreen extends StatefulWidget {
@@ -47,7 +48,7 @@ class _AdminAuthScreenState extends State<AdminAuthScreen> {
 
       if (doc.exists) {
         // ✅ Success: go to admin dashboard
-        Navigator.pushReplacementNamed(context, '/admin-dashboard');
+        Navigator.pushReplacementNamed(context, AppRoutes.adminDashboard);
       } else {
         await FirebaseAuth.instance.signOut();
         Fluttertoast.showToast(

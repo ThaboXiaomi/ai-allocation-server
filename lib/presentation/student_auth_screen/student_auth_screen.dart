@@ -3,6 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart'; // Import Firebase Auth
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:lecture_room_allocator/theme/app_theme.dart';
 import 'package:lecture_room_allocator/presentation/student_registration_screen/student_registration_screen.dart';
+import 'package:lecture_room_allocator/routes/app_routes.dart';
+import 'package:lecture_room_allocator/core/utils/logger.dart';
 
 // Assuming you have a Student Dashboard screen defined somewhere,
 // which this screen navigates to upon successful login.
@@ -51,9 +53,7 @@ class _StudentAuthScreenState extends State<StudentAuthScreen> {
 
         // Check if login was successful and we have a user object
         if (loggedInUser != null) {
-          print("User logged in successfully!");
-          print("User UID: ${loggedInUser.uid}"); // Access the user's unique ID
-          print("User Email: ${loggedInUser.email}"); // Access the user's email
+          Logger.log('Student login success for uid=${loggedInUser.uid}');
 
           // You can access other properties too, like displayName or photoURL
           // print("Display Name: ${loggedInUser.displayName}");
@@ -70,12 +70,12 @@ class _StudentAuthScreenState extends State<StudentAuthScreen> {
           // Navigate to Student Dashboard if login is successful
           // Using pushReplacementNamed means the user can't go back to the login screen
           // Make sure you have a route named '/student-dashboard' defined in your MaterialApp/CupertinoApp
-          Navigator.pushReplacementNamed(context, '/student-dashboard');
+          Navigator.pushReplacementNamed(context, AppRoutes.studentDashboard);
 
         } else {
            // This case is less likely to be hit if signInWithEmailAndPassword
            // completes without an exception, but it's good practice to check.
-           print("Login successful, but user object is null?");
+           Logger.log('Login returned null user unexpectedly.');
             Fluttertoast.showToast(
               msg: "Login failed unexpectedly. Please try again.",
               toastLength: Toast.LENGTH_LONG,
@@ -106,10 +106,10 @@ class _StudentAuthScreenState extends State<StudentAuthScreen> {
           backgroundColor: Colors.red,
           textColor: Colors.white,
         );
-         print("Firebase Auth Error: ${e.code} - ${e.message}"); // Log the specific error
+         Logger.log('Firebase Auth Error: ${e.code} - ${e.message}');
       } catch (e) {
         // Catch any other unexpected errors during the process
-        print("Unexpected login error: $e"); // Print the actual error for debugging
+        Logger.log('Unexpected login error: $e');
         Fluttertoast.showToast(
           msg: "An unexpected error occurred. Please try again.",
           toastLength: Toast.LENGTH_LONG,
