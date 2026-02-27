@@ -1,32 +1,35 @@
 import 'package:dio/dio.dart';
 
 class ApiService {
-  // IMPORTANT: Replace with your computer's IP address.
-  // For Android emulators, you can use 10.0.2.2 to connect to your computer's localhost.
-  // For physical devices or iOS simulators, use your computer's local IP on the same Wi-Fi network.
-  static const String _baseUrl = 'http://127.0.0.1:5000'; // <-- CHANGE THIS
+  // Use --dart-define=API_BASE_URL=https://your-api-url when running/building.
+  static const String _defaultBaseUrl = 'http://10.0.2.2:3000';
+  static const String _baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: _defaultBaseUrl,
+  );
 
-  final Dio _dio = Dio(BaseOptions(
-    baseUrl: _baseUrl,
-    connectTimeout: const Duration(seconds: 5),
-    receiveTimeout: const Duration(seconds: 3),
-  ));
+  final Dio _dio = Dio(
+    BaseOptions(
+      baseUrl: _baseUrl,
+      connectTimeout: const Duration(seconds: 10),
+      receiveTimeout: const Duration(seconds: 10),
+      sendTimeout: const Duration(seconds: 10),
+      headers: const {'Content-Type': 'application/json'},
+    ),
+  );
 
   Future<List<dynamic>> getAllocations() async {
     try {
       final response = await _dio.get('/allocations');
       if (response.statusCode == 200) {
         return response.data as List<dynamic>;
-      } else {
-        throw Exception('Failed to load allocations. Status code: ${response.statusCode}');
       }
+      throw Exception('Failed to load allocations. Status code: ${response.statusCode}');
     } on DioException catch (e) {
-      // Handle Dio-specific errors (e.g., connection timeout)
-      print('Dio error: $e');
-      throw Exception('Failed to connect to the server. Please check your network and the server address.');
+      final message = e.message ?? 'Unable to connect to allocation server.';
+      throw Exception('Failed to connect to server: $message');
     } catch (e) {
-      print('Generic error: $e');
-      throw Exception('An unknown error occurred.');
+      throw Exception('An unknown error occurred while fetching allocations: $e');
     }
   }
 }
