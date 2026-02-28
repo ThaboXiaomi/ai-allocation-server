@@ -94,3 +94,37 @@ test("buildError returns standardized error contract", () => {
     },
   });
 });
+
+
+test("validateEnv returns false when credentials file path does not exist", () => {
+  const previousCreds = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  process.env.GOOGLE_APPLICATION_CREDENTIALS = "/tmp/does-not-exist.json";
+
+  const logger = { error: () => {}, warn: () => {} };
+  const isValid = validateEnv(logger);
+  assert.equal(isValid, false);
+
+  if (previousCreds !== undefined) {
+    process.env.GOOGLE_APPLICATION_CREDENTIALS = previousCreds;
+  } else {
+    delete process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  }
+});
+
+test("validateEnv returns false in production when API_AUTH_TOKEN is missing", () => {
+  const previousCreds = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  const previousEnv = process.env.NODE_ENV;
+  const previousToken = process.env.API_AUTH_TOKEN;
+
+  process.env.GOOGLE_APPLICATION_CREDENTIALS = __filename;
+  process.env.NODE_ENV = "production";
+  delete process.env.API_AUTH_TOKEN;
+
+  const logger = { error: () => {}, warn: () => {} };
+  const isValid = validateEnv(logger);
+  assert.equal(isValid, false);
+
+  if (previousCreds !== undefined) process.env.GOOGLE_APPLICATION_CREDENTIALS = previousCreds; else delete process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  if (previousEnv !== undefined) process.env.NODE_ENV = previousEnv; else delete process.env.NODE_ENV;
+  if (previousToken !== undefined) process.env.API_AUTH_TOKEN = previousToken; else delete process.env.API_AUTH_TOKEN;
+});

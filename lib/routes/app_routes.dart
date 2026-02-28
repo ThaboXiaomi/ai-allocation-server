@@ -16,6 +16,7 @@ import 'package:lecture_room_allocator/presentation/lecturer_interface/widgets/c
 import 'package:lecture_room_allocator/presentation/lecturer_interface/widgets/notification_card_widget.dart';
 import 'package:lecture_room_allocator/presentation/lecturer_interface/widgets/venue_map_widget.dart';
 import 'package:lecture_room_allocator/presentation/portal_selection_screen/portal_selection_screen.dart';
+import 'package:lecture_room_allocator/presentation/splash_screen/splash_screen.dart';
 import 'package:lecture_room_allocator/presentation/student_auth_screen/student_auth_screen.dart';
 import 'package:lecture_room_allocator/presentation/student_dashboard/student_dashboard.dart';
 import 'package:lecture_room_allocator/presentation/student_registration_screen/student_registration_screen.dart';
@@ -24,6 +25,7 @@ import 'package:lecture_room_allocator/presentation/core/widgets/role_guard.dart
 
 class AppRoutes {
   static const String codeViewer = '/code-viewer';
+  static const String splash = '/';
   static const String portalSelection = '/portal-selection';
   static const String studentAuth = '/student-auth';
   static const String studentRegister = '/student-register';
@@ -44,6 +46,7 @@ class AppRoutes {
 
   static final Map<String, WidgetBuilder> routes = {
     codeViewer: (_) => const CodeViewerScreen(filePath: '', fileName: ''),
+    splash: (_) => const SplashScreen(),
     portalSelection: (_) => const PortalSelectionScreen(),
     studentAuth: (_) => const StudentAuthScreen(),
     studentRegister: (_) => const StudentRegistrationScreen(),

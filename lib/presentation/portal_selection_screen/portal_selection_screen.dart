@@ -18,6 +18,7 @@ class _PortalSelectionScreenState extends State<PortalSelectionScreen>
   late final AnimationController _controller;
   late final Animation<double> _fadeIn;
   late final Animation<Offset> _slideIn;
+  bool _didAttemptAutoRedirect = false;
 
   @override
   void initState() {
@@ -32,6 +33,28 @@ class _PortalSelectionScreenState extends State<PortalSelectionScreen>
       begin: const Offset(0, 0.08),
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
+
+    _redirectSignedInUser();
+  }
+
+  Future<void> _redirectSignedInUser() async {
+    if (_didAttemptAutoRedirect) return;
+    _didAttemptAutoRedirect = true;
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+    final role = (doc.data()?['role'] as String? ?? 'student').toLowerCase();
+    if (!mounted) return;
+
+    if (role == 'admin') {
+      Navigator.pushReplacementNamed(context, AppRoutes.adminDashboard);
+    } else if (role == 'lecturer') {
+      Navigator.pushReplacementNamed(context, AppRoutes.lecturerDashboard);
+    } else {
+      Navigator.pushReplacementNamed(context, AppRoutes.studentDashboard);
+    }
   }
 
   @override
@@ -75,23 +98,6 @@ class _PortalSelectionScreenState extends State<PortalSelectionScreen>
 
   @override
   Widget build(BuildContext context) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        FirebaseFirestore.instance.collection('users').doc(user.uid).get().then((doc) {
-          final role = (doc.data()?['role'] as String? ?? 'student').toLowerCase();
-          if (!context.mounted) return;
-          if (role == 'admin') {
-            Navigator.pushReplacementNamed(context, AppRoutes.adminDashboard);
-          } else if (role == 'lecturer') {
-            Navigator.pushReplacementNamed(context, AppRoutes.lecturerDashboard);
-          } else {
-            Navigator.pushReplacementNamed(context, AppRoutes.studentDashboard);
-          }
-        });
-      }
-    });
-
     return Scaffold(
       body: Stack(
         children: [

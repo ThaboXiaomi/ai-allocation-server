@@ -6,6 +6,8 @@ const admin = require("firebase-admin");
 
 require("dotenv").config({ path: path.resolve(__dirname, "../.env") });
 
+const fs = require("fs");
+
 const REQUIRED_ENV_VARS = ["GOOGLE_APPLICATION_CREDENTIALS"];
 
 function buildError(code, message, details, requestId) {
@@ -46,6 +48,12 @@ function validateEnv(logger = console) {
 
   if (process.env.NODE_ENV === "production" && !process.env.API_AUTH_TOKEN) {
     logger.error("❌ API_AUTH_TOKEN is required in production.");
+    return false;
+  }
+
+  const credsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  if (credsPath && !fs.existsSync(credsPath)) {
+    logger.error("❌ GOOGLE_APPLICATION_CREDENTIALS points to a non-existent file.");
     return false;
   }
 

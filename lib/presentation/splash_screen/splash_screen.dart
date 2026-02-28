@@ -42,30 +42,37 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _initializeApp() async {
-    await FirebaseAnalytics.instance.logEvent(name: 'splash_screen_visited');
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      await FirebaseAnalytics.instance.logEvent(name: 'splash_screen_visited');
+      await Future.delayed(const Duration(seconds: 2));
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    final user = FirebaseAuth.instance.currentUser;
+      final user = FirebaseAuth.instance.currentUser;
 
-    if (user != null) {
-      final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-      final userRole = (userDoc.data()?['role'] as String? ?? 'student').toLowerCase();
+      if (user != null) {
+        final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+        final userRole = (userDoc.data()?['role'] as String? ?? 'student').toLowerCase();
 
-      switch (userRole) {
-        case 'admin':
-          Navigator.pushReplacementNamed(context, AppRoutes.adminDashboard);
-          break;
-        case 'lecturer':
-          Navigator.pushReplacementNamed(context, AppRoutes.lecturerDashboard);
-          break;
-        case 'student':
-        default:
-          Navigator.pushReplacementNamed(context, AppRoutes.studentDashboard);
-          break;
+        if (!mounted) return;
+
+        switch (userRole) {
+          case 'admin':
+            Navigator.pushReplacementNamed(context, AppRoutes.adminDashboard);
+            break;
+          case 'lecturer':
+            Navigator.pushReplacementNamed(context, AppRoutes.lecturerDashboard);
+            break;
+          case 'student':
+          default:
+            Navigator.pushReplacementNamed(context, AppRoutes.studentDashboard);
+            break;
+        }
+      } else {
+        Navigator.pushReplacementNamed(context, AppRoutes.portalSelection);
       }
-    } else {
+    } catch (_) {
+      if (!mounted) return;
       Navigator.pushReplacementNamed(context, AppRoutes.portalSelection);
     }
   }
