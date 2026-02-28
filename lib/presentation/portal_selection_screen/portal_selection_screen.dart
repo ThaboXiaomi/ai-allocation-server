@@ -1,13 +1,44 @@
-import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 
 import 'package:lecture_room_allocator/routes/app_routes.dart';
 import 'package:lecture_room_allocator/theme/app_theme.dart';
 
-class PortalSelectionScreen extends StatelessWidget {
+class PortalSelectionScreen extends StatefulWidget {
   const PortalSelectionScreen({Key? key}) : super(key: key);
+
+  @override
+  State<PortalSelectionScreen> createState() => _PortalSelectionScreenState();
+}
+
+class _PortalSelectionScreenState extends State<PortalSelectionScreen>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _fadeIn;
+  late final Animation<Offset> _slideIn;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..forward();
+
+    _fadeIn = CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic);
+    _slideIn = Tween<Offset>(
+      begin: const Offset(0, 0.08),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   Future<void> _logAnalyticsEvent(String portal) async {
     await FirebaseAnalytics.instance.logEvent(
@@ -20,21 +51,15 @@ class PortalSelectionScreen extends StatelessWidget {
     final user = FirebaseAuth.instance.currentUser;
 
     if (user != null) {
-      // Save selected portal to Firestore (user document)
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .set({
-        'role': portal.toLowerCase(), // Set role directly in user doc
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'role': portal.toLowerCase(),
         'selectedPortal': portal,
         'timestamp': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true)); // Merge to preserve existing fields
+      }, SetOptions(merge: true));
     }
 
-    // Log analytics event
     await _logAnalyticsEvent(portal);
 
-    // Navigate to the selected portal
     switch (portal) {
       case 'Admin':
         Navigator.pushNamed(context, AppRoutes.adminAuth);
@@ -50,123 +75,208 @@ class PortalSelectionScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Redirect if user is already logged in
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        Navigator.pushReplacementNamed(
-          context,
-          AppRoutes.studentDashboard, // Replace with dynamic role-based redirect if needed
-        );
+        FirebaseFirestore.instance.collection('users').doc(user.uid).get().then((doc) {
+          final role = (doc.data()?['role'] as String? ?? 'student').toLowerCase();
+          if (!context.mounted) return;
+          if (role == 'admin') {
+            Navigator.pushReplacementNamed(context, AppRoutes.adminDashboard);
+          } else if (role == 'lecturer') {
+            Navigator.pushReplacementNamed(context, AppRoutes.lecturerDashboard);
+          } else {
+            Navigator.pushReplacementNamed(context, AppRoutes.studentDashboard);
+          }
+        });
       }
     });
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Lecture Room Allocator',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: AppTheme.primary600,
-        elevation: 0,
-      ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              AppTheme.primary200,
-              AppTheme.primary500,
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+      body: Stack(
+        children: [
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.98, end: 1.02),
+            duration: const Duration(seconds: 6),
+            curve: Curves.easeInOut,
+            builder: (context, scale, _) {
+              return Transform.scale(
+                scale: scale,
+                child: Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Color(0xFF1877F2),
+                        Color(0xFF0E5CC2),
+                        Color(0xFF075E54),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
-        ),
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(30.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                Icon(
-                  Icons.school,
-                  size: 80,
-                  color: AppTheme.primary700,
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  'Select Your Portal',
-                  textAlign: TextAlign.center,
-                  style: AppTheme.lightTheme.textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        shadows: [
-                          Shadow(
-                            blurRadius: 2.0,
-                            color: Colors.black.withOpacity(0.3),
-                            offset: const Offset(1.0, 1.0),
-                          ),
-                        ],
+          SafeArea(
+            child: FadeTransition(
+              opacity: _fadeIn,
+              child: SlideTransition(
+                position: _slideIn,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Campus Connect',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 30,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.3,
+                          color: Colors.white,
+                        ),
                       ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Fast, social-inspired lecture coordination for everyone.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.white.withOpacity(0.92),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      _buildStatsCard(),
+                      const SizedBox(height: 18),
+                      _buildPortalTile(
+                        context: context,
+                        icon: Icons.admin_panel_settings_rounded,
+                        iconColor: const Color(0xFF1877F2),
+                        title: 'Admin Hub',
+                        subtitle: 'Oversee schedules, alerts, and room operations',
+                        onTap: () => _trackUserSelection('Admin', context),
+                      ),
+                      const SizedBox(height: 14),
+                      _buildPortalTile(
+                        context: context,
+                        icon: Icons.cast_for_education_rounded,
+                        iconColor: const Color(0xFF075E54),
+                        title: 'Lecturer Space',
+                        subtitle: 'Run classes, track attendance, and check room updates',
+                        onTap: () => _trackUserSelection('Lecturer', context),
+                      ),
+                      const SizedBox(height: 14),
+                      _buildPortalTile(
+                        context: context,
+                        icon: Icons.groups_rounded,
+                        iconColor: AppTheme.primary700,
+                        title: 'Student Zone',
+                        subtitle: 'See classes, room changes, and live notifications',
+                        onTap: () => _trackUserSelection('Student', context),
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 50),
-                _buildPortalButton(
-                  context: context,
-                  icon: Icons.admin_panel_settings,
-                  label: 'Admin Portal',
-                  onPressed: () => _trackUserSelection('Admin', context),
-                ),
-                const SizedBox(height: 25),
-                _buildPortalButton(
-                  context: context,
-                  icon: Icons.school,
-                  label: 'Lecturer Portal',
-                  onPressed: () => _trackUserSelection('Lecturer', context),
-                ),
-                const SizedBox(height: 25),
-                _buildPortalButton(
-                  context: context,
-                  icon: Icons.school_outlined,
-                  label: 'Student Portal',
-                  onPressed: () => _trackUserSelection('Student', context),
-                ),
-              ],
+              ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatsCard() {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 500),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.25)),
+      ),
+      child: const Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _StatItem(label: 'Realtime', value: '24/7'),
+          _StatItem(label: 'Allocation', value: 'AI'),
+          _StatItem(label: 'Notices', value: 'Instant'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPortalTile({
+    required BuildContext context,
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(20),
+      elevation: 5,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 240),
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: iconColor.withOpacity(0.14),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(icon, color: iconColor),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 17),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded, color: Colors.black45),
+            ],
           ),
         ),
       ),
     );
   }
+}
 
-  Widget _buildPortalButton({
-    required BuildContext context,
-    required IconData icon,
-    required String label,
-    required VoidCallback onPressed,
-  }) {
-    return ElevatedButton.icon(
-      icon: Icon(
-        icon,
-        size: 24,
-        color: AppTheme.primary700,
-      ),
-      label: Text(
-        label,
-        style: TextStyle(
-          fontSize: 18,
-          color: AppTheme.primary700,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      onPressed: onPressed,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.white.withOpacity(0.9),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        elevation: 5,
-      ),
+class _StatItem extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _StatItem({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
+        const SizedBox(height: 4),
+        Text(label, style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 12)),
+      ],
     );
   }
 }

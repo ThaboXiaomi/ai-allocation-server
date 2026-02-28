@@ -7,6 +7,7 @@ import 'package:sizer/sizer.dart'; // Responsive design
 import './core/utils/navigator_service.dart';
 import './core/utils/pref_utils.dart';
 import './routes/app_routes.dart';
+import './core/utils/logger.dart';
 import './theme/app_theme.dart';
 import 'firebase_options.dart'; // Required for DefaultFirebaseOptions
 
@@ -21,11 +22,9 @@ Future<void> main() async {
     );
   } catch (e) {
     // Log the detailed error to the console
-    print("CRITICAL: Firebase initialization failed: $e");
-    print(
-        "Please ensure you have run 'flutterfire configure' and that your Firebase project setup is correct.");
-    print(
-        "Check for missing or misconfigured google-services.json (Android) or GoogleService-Info.plist (iOS) if not using DefaultFirebaseOptions.");
+    Logger.log('CRITICAL: Firebase initialization failed: $e');
+    Logger.log("Please ensure you have run 'flutterfire configure' and that your Firebase project setup is correct.");
+    Logger.log("Check for missing or misconfigured google-services.json (Android) or GoogleService-Info.plist (iOS) if not using DefaultFirebaseOptions.");
 
     // Display an error screen to the user
     runApp(FirebaseErrorScreen(error: e.toString()));

@@ -1,0 +1,116 @@
+openapi: 3.0.3
+info:
+  title: AI Allocation Server API
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000
+components:
+  schemas:
+    ErrorEnvelope:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              nullable: true
+            requestId:
+              type: string
+    AllocationListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+        count:
+          type: integer
+        limit:
+          type: integer
+        requestId:
+          type: string
+    ResolveConflictPayload:
+      type: object
+      required: [allocationId, date, startTime, endTime]
+      properties:
+        allocationId:
+          type: string
+        conflictDetails:
+          type: string
+        date:
+          type: string
+        startTime:
+          type: string
+          description: HH:MM AM/PM
+        endTime:
+          type: string
+          description: HH:MM AM/PM
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: OK
+  /allocations:
+    get:
+      summary: List allocations
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+      responses:
+        '200':
+          description: Allocation list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AllocationListResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /resolve-conflict:
+    get:
+      summary: Get sample conflict payload
+      responses:
+        '200':
+          description: Sample payload
+    post:
+      summary: Resolve conflict
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResolveConflictPayload'
+      responses:
+        '200':
+          description: Conflict resolved
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Allocation not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
