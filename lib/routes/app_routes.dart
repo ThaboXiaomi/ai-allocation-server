@@ -3,6 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import 'package:lecture_room_allocator/presentation/admin_dashboard/admin_dashboard.dart';
+import 'package:lecture_room_allocator/presentation/admin_dashboard/widgets/faculty_list_screen.dart';
+import 'package:lecture_room_allocator/presentation/admin_dashboard/widgets/venue_management_screen.dart';
 import 'package:lecture_room_allocator/presentation/admin_login/admin_auth_screen.dart';
 import 'package:lecture_room_allocator/presentation/admin_password_reset/admin_password_reset.dart';
 import 'package:lecture_room_allocator/presentation/admin_registration_screen/admin_registration_screen.dart';
@@ -33,6 +35,8 @@ class AppRoutes {
   static const String studentDashboard = '/student-dashboard';
   static const String adminDashboard = '/admin-dashboard';
   static const String lecturerDashboard = '/lecturer-dashboard';
+  static const String facultyManagement = '/faculty-management';
+  static const String venueManagement = '/venue-management';
   static const String courseManagement = '/course-management';
   static const String aiAllocationDashboard = '/ai-allocation-dashboard';
   static const String studentSettings = '/student-settings';
@@ -53,6 +57,8 @@ class AppRoutes {
     studentDashboard: (_) => const StudentDashboardScreen(),
     adminDashboard: (_) => const AdminDashboard(),
     lecturerDashboard: (_) => const LecturerInterface(),
+    facultyManagement: (_) => const FacultyListScreen(),
+    venueManagement: (_) => const VenueManagementScreen(),
     courseManagement: (_) => const CourseManagement(),
     aiAllocationDashboard: (_) => const AIAllocationDashboard(),
     studentSettings: (_) => const StudentSettings(),
