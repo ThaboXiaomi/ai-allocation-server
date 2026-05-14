@@ -1,69 +1,67 @@
-# -----------------------------
-# General
-# -----------------------------
-*.class
+```
+# Dependencies
+node_modules/
+
+# Logs and temp files
 *.log
-*.pyc
-*.swp
-.DS_Store
-.history
-.svn/
-*.iml
-*.ipr
-*.iws
+*.tmp
 
-# -----------------------------
-# Editor Configs
-# -----------------------------
-.atom/
-.idea/
-.vscode/  # Uncomment this if you want to ignore VS Code configs
-
-# -----------------------------
-# Build Artifacts
-# -----------------------------
-.build/
-.buildlog/
-.dart_tool/
-.flutter-plugins
-.flutter-plugins-dependencies
-.pub-cache/
-.pub/
-/build/
-**/doc/api/
-**/ios/Flutter/.last_build_id
-
-# Android Studio Build Outputs
-/android/app/debug/
-/android/app/profile/
-/android/app/release/
-
-# Symbolication / Obfuscation
-app.*.symbols
-app.*.map.json
-
-# -----------------------------
-# Dependency Lock Files
-# -----------------------------
-pubspec.lock  # Comment this out if you want to keep lockfiles for pub consistency
-
-# -----------------------------
-# Environment Files
-# -----------------------------
+# Environment variables
 .env
 .env.local
+*.env.*
 
-# -----------------------------
-# Sensitive Files (Secrets, API Keys, OAuth)
-# -----------------------------
-*.json  # Be cautious with this — may ignore config files too
-!pubspec.lock  # Keep this to retain Dart dependencies
-# Known secret files (remove from repo if committed accidentally)
-aesthetic-style-457611-h4-dfc5f63371fd.json
-campus-venue-navigator-firebase-adminsdk-fbsvc-60112e76dd.json
-campus-venue-navigator-2ce2a11eaf28.json
-OAuth2 Configurations.json
+# Editor/IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
 
-# Migration dirs (Dart, Flutter tools, etc.)
-migrate_working_dir/
-.swiftpm/
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Build outputs
+dist/
+build/
+target/
+
+# Python specific
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.out
+*.pid
+*.seed
+*.prof
+
+# Node.js specific
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+node_modules/
+jspm_packages/
+typings/
+.commit
+.nyc_output
+coverage/
+.nyc_output/
+istanbul/
+.mocha.opts
+.travis.yml
+appveyor.yml
+```

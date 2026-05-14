@@ -31,6 +31,66 @@ test("validateResolveConflictPayload accepts valid payload", () => {
   assert.deepEqual(result, { valid: true });
 });
 
+test("validateResolveConflictPayload rejects invalid date format", () => {
+  const result = validateResolveConflictPayload({
+    allocationId: "a1",
+    date: "07-09-2025",
+    startTime: "10:00",
+    endTime: "12:00",
+  });
+
+  assert.equal(result.valid, false);
+  assert.match(result.message, /Invalid date format/);
+});
+
+test("validateResolveConflictPayload rejects invalid time format", () => {
+  const result = validateResolveConflictPayload({
+    allocationId: "a1",
+    date: "2025-07-09",
+    startTime: "25:00",
+    endTime: "12:00",
+  });
+
+  assert.equal(result.valid, false);
+  assert.match(result.message, /Invalid time format/);
+});
+
+test("validateResolveConflictPayload rejects invalid allocationId format", () => {
+  const result = validateResolveConflictPayload({
+    allocationId: "a1@invalid!chars",
+    date: "2025-07-09",
+    startTime: "10:00",
+    endTime: "12:00",
+  });
+
+  assert.equal(result.valid, false);
+  assert.match(result.message, /Invalid allocationId format/);
+});
+
+test("validateResolveConflictPayload rejects conflictDetails exceeding max length", () => {
+  const result = validateResolveConflictPayload({
+    allocationId: "a1",
+    date: "2025-07-09",
+    startTime: "10:00",
+    endTime: "12:00",
+    conflictDetails: "x".repeat(501),
+  });
+
+  assert.equal(result.valid, false);
+  assert.match(result.message, /max 500 characters/);
+});
+
+test("validateResolveConflictPayload accepts valid payload with AM/PM time format", () => {
+  const result = validateResolveConflictPayload({
+    allocationId: "a1",
+    date: "2025-07-09",
+    startTime: "10:00 AM",
+    endTime: "12:00 PM",
+  });
+
+  assert.deepEqual(result, { valid: true });
+});
+
 test("validateEnv returns false when required env vars are missing", () => {
   const previous = process.env.GOOGLE_APPLICATION_CREDENTIALS;
   delete process.env.GOOGLE_APPLICATION_CREDENTIALS;
