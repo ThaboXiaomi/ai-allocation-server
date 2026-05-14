@@ -1,0 +1,125 @@
+version: '3.8'
+
+services:
+  # Node.js Main Server
+  allocation-server:
+    build:
+      context: ./ai-allocation-server
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - NODE_ENV=production
+      - PORT=8080
+      - HOST=0.0.0.0
+      - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID}
+      - ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
+    depends_on:
+      - redis
+      - python-ai-service
+    networks:
+      - allocation-network
+    restart: unless-stopped
+
+  # Python AI Microservice
+  python-ai-service:
+    build:
+      context: ./python_ai_service
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PORT=8081
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+    networks:
+      - allocation-network
+    restart: unless-stopped
+    volumes:
+      - ./python_ai_service/app:/app/app
+      - model-storage:/app/models
+
+  # Redis for caching and task queue
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - allocation-network
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+
+  # Celery Worker (for background tasks)
+  celery-worker:
+    build:
+      context: ./python_ai_service
+      dockerfile: Dockerfile
+    command: celery -A app.tasks.celery_app worker --loglevel=info
+    environment:
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+      - python-ai-service
+    networks:
+      - allocation-network
+    restart: unless-stopped
+    volumes:
+      - model-storage:/app/models
+
+  # Celery Beat (for scheduled tasks)
+  celery-beat:
+    build:
+      context: ./python_ai_service
+      dockerfile: Dockerfile
+    command: celery -A app.tasks.celery_app beat --loglevel=info
+    environment:
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+    networks:
+      - allocation-network
+    restart: unless-stopped
+
+  # Prometheus (monitoring)
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    networks:
+      - allocation-network
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+
+  # Grafana (visualization)
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - allocation-network
+    restart: unless-stopped
+
+volumes:
+  redis-data:
+  prometheus-data:
+  grafana-data:
+  model-storage:
+
+networks:
+  allocation-network:
+    driver: bridge
